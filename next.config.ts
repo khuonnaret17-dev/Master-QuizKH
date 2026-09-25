@@ -5,7 +5,8 @@ const nextConfig = (phase: string): NextConfig => {
   const isDev = phase === PHASE_DEVELOPMENT_SERVER;
 
   return {
-    distDir: isDev ? ".next-dev" : ".next",
+    // Avoid overriding build directory on Vercel to prevent deployment conflicts
+    distDir: process.env.VERCEL === "1" ? undefined : (isDev ? ".next-dev" : ".next"),
     images: {
       dangerouslyAllowSVG: true,
       contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
