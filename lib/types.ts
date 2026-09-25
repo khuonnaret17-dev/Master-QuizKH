@@ -1,0 +1,95 @@
+export type UserRole = 'ADMIN' | 'MEMBER';
+export type QuizType = 'MULTIPLE_CHOICE' | 'Q_AND_A' | 'VOCABULARY';
+
+export type MembershipPlan = 'FREE' | 'BASIC_1M' | 'BASIC_6M' | 'PREMIUM_1Y' | 'LIFETIME';
+
+export interface User {
+  id: string;
+  email: string;
+  role: UserRole;
+  name: string;
+  isOnline?: boolean;
+  lastActiveAt?: string;
+  membership?: {
+    plan: MembershipPlan;
+    expiresAt?: string;
+  };
+}
+
+export interface Quiz {
+  id: string;
+  type?: QuizType;
+  category: string; // ឧទាហរណ៍៖ សំណួរត្រៀម, ជំនាញឯកទេស, ... (Vignasa)
+  question: string;
+  options?: {
+    [key: string]: string;
+  };
+  correctAnswer?: string;
+  explanation?: string;
+  answer?: string; // For Q_AND_A
+}
+
+export interface McqItem {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation?: string;
+}
+
+export interface QaItem {
+  question: string;
+  answer: string;
+  explanation?: string;
+}
+
+export interface QuizCategory {
+  category: string;
+  items: McqItem[];
+  subCategories?: QuizCategory[];
+}
+
+export interface ShortAnswerCategory {
+  category: string;
+  items: QaItem[];
+  subCategories?: ShortAnswerCategory[];
+}
+
+export interface Ministry {
+  id: string;
+  name: string;
+  khmerName: string;
+  description: string;
+  details?: string;
+  logo: string;
+  color: string;
+  order?: number;
+  groupType?: 'SUBJECT' | 'INSTITUTION';
+  subjectType?: 'MCQ' | 'QA';
+  quizzes?: Quiz[];
+  mcqs?: QuizCategory[];
+  shortAnswers?: ShortAnswerCategory[];
+  terms?: {
+    term: string;
+    definition: string;
+  }[];
+}
+
+export interface PdfDocument {
+  id: string;
+  title: string;
+  url: string;
+  ministryId: string;
+  createdAt?: string;
+}
+
+export interface Progress {
+  [key: string]: {
+    completedCount?: number;
+    totalCount?: number;
+    score: number;
+    completedAt?: string;
+    ministryId?: string;
+    category?: string;
+    type?: string;
+  };
+}
