@@ -1,13 +1,7 @@
 import type { NextConfig } from "next";
-import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const nextConfig = (phase: string): NextConfig => {
-  const isDev = phase === PHASE_DEVELOPMENT_SERVER;
-
-  return {
-    // Avoid overriding build directory on Vercel to prevent deployment conflicts
-    distDir: process.env.VERCEL === "1" ? undefined : (isDev ? ".next-dev" : ".next"),
-    images: {
+const nextConfig: NextConfig = {
+  images: {
       dangerouslyAllowSVG: true,
       contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
       remotePatterns: [
@@ -49,7 +43,6 @@ const nextConfig = (phase: string): NextConfig => {
         },
       ],
     },
-  };
 };
 
 export default nextConfig;

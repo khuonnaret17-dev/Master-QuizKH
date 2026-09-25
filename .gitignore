@@ -1,5 +1,7 @@
 node_modules/
 .netlify/
+.next/
+.next-dev/
 coverage/
 .DS_Store
 *.log
