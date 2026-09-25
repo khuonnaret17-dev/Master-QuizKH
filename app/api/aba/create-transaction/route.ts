@@ -17,8 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    const merchantId = process.env.ABA_MERCHANT_ID || "ecash";
-    const apiKey = process.env.ABA_API_KEY || "51e44fbe4315228c2e646f906bc5fb99c4bd1f69";
+    const merchantId = "ecash";
+    const apiKey = "51e44fbe4315228c2e646f906bc5fb99c4bd1f69";
 
     const requestTime = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
     const safeUserId = String(userId).replace(/[^a-zA-Z0-9]/g, '0').slice(0, 5);

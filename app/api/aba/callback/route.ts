@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       data[key] = value as string;
     });
 
-    const _apiKey = process.env.ABA_API_KEY || "51e44fbe4315228c2e646f906bc5fb99c4bd1f69";
+    const _apiKey = "51e44fbe4315228c2e646f906bc5fb99c4bd1f69";
 
     // NOTE: ABA Callback Hash Verification
     // ត្រូវយកទិន្នន័យដែលទទួលបានតាមលំដាប់ដែល ABA កំណត់ រួចធ្វើការ Hash ម្ដងទៀត

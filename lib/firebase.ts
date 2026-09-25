@@ -10,10 +10,10 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || defaultConfig.appId,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || defaultConfig.measurementId,
+  measurementId: defaultConfig.measurementId,
 };
 
-const databaseId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || defaultConfig.firestoreDatabaseId;
+const databaseId = defaultConfig.firestoreDatabaseId;
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
