@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
 import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -161,11 +160,14 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
       }, 0);
       onComplete(score);
       if (score === quizzes.length) {
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+        import('canvas-confetti').then((module) => {
+          const confetti = module.default;
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }).catch((err) => console.error("Confetti error:", err));
       }
     }
   };
