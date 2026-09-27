@@ -1,7 +1,7 @@
 'use client';
 
 import { useFirebase } from "@/lib/FirebaseProvider";
-import { LogIn, LogOut, User as UserIcon, ChevronDown, Crown, X, Lock, AlertCircle, CheckCircle2, Radio } from "lucide-react";
+import { LogIn, LogOut, User as UserIcon, ChevronDown, Crown, X, Lock, AlertCircle, CheckCircle2, Radio, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -366,6 +366,14 @@ export function UserNav() {
                     <span>ផ្សាយផ្ទាល់ (Live Studio)</span>
                   </Link>
                 )}
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-teal-700 font-medium hover:bg-teal-50 rounded-xl transition-colors cursor-pointer font-khmer"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-teal-500" />
+                  <span>វឌ្ឍនភាពសិក្សា (Dashboard)</span>
+                </Link>
                 <button
                   onClick={logout}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 font-medium hover:bg-red-50 rounded-xl transition-colors cursor-pointer"

@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { setDoc, doc, deleteDoc, collection, onSnapshot, updateDoc } from 'firebase/firestore';
 import { Ministry, QuizCategory, ShortAnswerCategory } from '@/lib/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Save, X, Pencil, ArrowLeft, ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, ExternalLink, Send, Users, Shield, Crown, Key, BookOpen, Building2, Radio } from 'lucide-react';
+import { Save, X, Pencil, ArrowLeft, ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, ExternalLink, Send, Users, Shield, Crown, Key, BookOpen, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import SafeImage from '@/components/SafeImage';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -1220,13 +1220,6 @@ export default function AdminPage() {
             <p className="text-slate-500">Manage ministry information, quizzes, and terms</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link 
-              href="/live" 
-              className="px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl font-bold hover:from-red-500 hover:to-rose-500 transition-all flex items-center gap-2 shadow-lg shadow-red-600/20 text-xs md:text-sm font-khmer cursor-pointer"
-            >
-              <Radio className="w-4 h-4 animate-pulse" />
-              <span>ផ្សាយផ្ទាល់ Telegram (Live Studio)</span>
-            </Link>
             {(activeTab === 'INSTITUTION' || activeTab === 'SUBJECT') && (
               <button 
                 onClick={handleAddMinistry}
