@@ -21,6 +21,7 @@ export default function Home() {
 
   // Recent searches state & persistence
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     try {
@@ -582,7 +583,7 @@ export default function Home() {
                     </button>
                   ))}
                   <button
-                    onClick={clearRecentSearches}
+                    onClick={() => setShowClearConfirm(true)}
                     className="text-[10px] text-slate-400 hover:text-red-500 font-khmer ml-auto underline transition-colors cursor-pointer"
                   >
                     លុបប្រវត្តិទាំងអស់
@@ -605,6 +606,46 @@ export default function Home() {
               <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
                 <Search className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                 <p className="text-slate-500 font-khmer">រកមិនឃើញទិន្នន័យដែលអ្នកស្វែងរកទេ...</p>
+              </div>
+            )}
+
+            {/* Clear Search History Confirmation Modal */}
+            {showClearConfirm && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="bg-white border-2 border-amber-500/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
+                  
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 font-khmer mb-2">បញ្ជាក់ការលុបប្រវត្តិ</h3>
+                    <p className="text-slate-500 text-xs font-khmer leading-relaxed mb-6">
+                      តើអ្នកពិតជាចង់លុបប្រវត្តិស្វែងរកទាំងអស់មែនទេ? ការលុបនេះមិនអាចសង្គ្រោះមកវិញបានឡើយ។
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowClearConfirm(false)}
+                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold font-khmer text-xs transition-all cursor-pointer"
+                      >
+                        បោះបង់
+                      </button>
+                      <button
+                        onClick={() => {
+                          clearRecentSearches();
+                          setShowClearConfirm(false);
+                        }}
+                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold font-khmer text-xs transition-all cursor-pointer shadow-md shadow-red-600/10"
+                      >
+                        យល់ព្រមលុប
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             )}
           </>

@@ -29,7 +29,11 @@ import {
   Trophy,
   ChevronRight,
   User,
-  LayoutDashboard
+  LayoutDashboard,
+  Search,
+  X,
+  History,
+  AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -39,10 +43,53 @@ export default function Dashboard() {
   const { ministries, user, userProgress, authLoading, loading } = useFirebase();
   const [isMounted, setIsMounted] = useState(false);
   const [activeChart, setActiveChart] = useState<'COMBINED' | 'COMPLETION' | 'SCORES'>('COMBINED');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    try {
+      const saved = localStorage.getItem('cambodia_dashboard_recent_searches');
+      if (saved) {
+        setRecentSearches(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const addRecentSearch = (term: string) => {
+    if (!term.trim()) return;
+    const cleaned = term.trim();
+    const updated = [cleaned, ...recentSearches.filter(s => s !== cleaned)].slice(0, 6);
+    setRecentSearches(updated);
+    try {
+      localStorage.setItem('cambodia_dashboard_recent_searches', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
+
+  const removeRecentSearch = (e: React.MouseEvent, term: string) => {
+    e.stopPropagation();
+    const updated = recentSearches.filter(s => s !== term);
+    setRecentSearches(updated);
+    try {
+      localStorage.setItem('cambodia_dashboard_recent_searches', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    try {
+      localStorage.removeItem('cambodia_dashboard_recent_searches');
+    } catch {
+      // ignore
+    }
+  };
 
   // Compute stats for each ministry
   const dashboardData = useMemo(() => {
@@ -146,6 +193,17 @@ export default function Dashboard() {
       activeMinistriesCount: activeCount
     };
   }, [dashboardData]);
+
+  // Filtered Dashboard Data for table view
+  const filteredDashboardData = useMemo(() => {
+    if (!searchTerm.trim()) return dashboardData;
+    const term = searchTerm.toLowerCase().trim();
+    return dashboardData.filter(m => 
+      m.name.toLowerCase().includes(term) || 
+      m.shortName.toLowerCase().includes(term) ||
+      m.id.toLowerCase().includes(term)
+    );
+  }, [dashboardData, searchTerm]);
 
   // Extract recent activities from userProgress
   const recentActivities = useMemo(() => {
@@ -497,12 +555,72 @@ export default function Dashboard() {
 
         {/* Detailed Ministry Progress List */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-              <Award className="w-4 h-4" />
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                <Award className="w-4 h-4" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 font-khmer">វឌ្ឍនភាពសិក្សាលម្អិតតាមក្រសួងស្ថាប័ន</h3>
             </div>
-            <h3 className="text-base font-bold text-slate-900 font-khmer">វឌ្ឍនភាពសិក្សាលម្អិតតាមក្រសួងស្ថាប័ន</h3>
+            
+            {/* Search Box */}
+            <div className="w-full md:w-80 shrink-0">
+              <div className="relative flex items-center">
+                <Search className="absolute left-3.5 text-slate-400 w-4 h-4 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchTerm.trim()) {
+                      addRecentSearch(searchTerm);
+                    }
+                  }}
+                  placeholder="ស្វែងរកក្រសួង ស្ថាប័ន..."
+                  className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 shadow-3xs focus:outline-none focus:ring-2 focus:ring-[#094C72] focus:border-transparent transition-all font-khmer placeholder:text-slate-400"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Recent Search Chips */}
+          {recentSearches.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-khmer mr-1">
+                <History className="w-3.5 h-3.5 text-[#094C72]" />
+                <span>ស្វែងរកថ្មីៗ៖</span>
+              </div>
+              {recentSearches.map((term, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSearchTerm(term)}
+                  className="group inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 shadow-3xs transition-all font-khmer cursor-pointer"
+                >
+                  <span>{term}</span>
+                  <span
+                    onClick={(e) => removeRecentSearch(e, term)}
+                    className="text-slate-400 hover:text-red-500 rounded-full p-0.5 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </span>
+                </button>
+              ))}
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="text-[10px] text-slate-400 hover:text-red-500 font-khmer ml-auto underline transition-colors cursor-pointer"
+              >
+                លុបប្រវត្តិទាំងអស់
+              </button>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -516,7 +634,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {dashboardData.map((m) => (
+                {filteredDashboardData.map((m) => (
                   <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
                     {/* Logo & Name */}
                     <td className="py-4 px-4 flex items-center gap-3">
@@ -586,6 +704,46 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      {/* Clear Search History Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white border-2 border-amber-500/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
+            
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 font-khmer mb-2">បញ្ជាក់ការលុបប្រវត្តិ</h3>
+              <p className="text-slate-500 text-xs font-khmer leading-relaxed mb-6">
+                តើអ្នកពិតជាចង់លុបប្រវត្តិស្វែងរកទាំងអស់មែនទេ? ការលុបនេះមិនអាចសង្គ្រោះមកវិញបានឡើយ។
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold font-khmer text-xs transition-all cursor-pointer"
+                >
+                  បោះបង់
+                </button>
+                <button
+                  onClick={() => {
+                    clearRecentSearches();
+                    setShowClearConfirm(false);
+                  }}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold font-khmer text-xs transition-all cursor-pointer shadow-md shadow-red-600/10"
+                >
+                  យល់ព្រមលុប
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </main>
   );
 }
