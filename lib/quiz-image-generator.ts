@@ -1,6 +1,6 @@
 // html-to-image and html2canvas dynamically imported on demand to keep initial bundle ultra fast
 
-interface QuizInput {
+export interface QuizInput {
   question: string;
   type?: "mcq" | "qa";
   options?: string[] | Record<string, string>;
@@ -10,10 +10,22 @@ interface QuizInput {
   explanation?: string;
 }
 
-interface MinistryInput {
+export interface MinistryInput {
   khmerName?: string;
   name?: string;
   logo?: string;
+}
+
+export interface PosterConfig {
+  layout?: 'MODERN_DARK' | 'EDITORIAL_LIGHT' | 'ROYAL_GOLD';
+  footerBrand?: string;
+  footerTagline?: string;
+  footerHandle?: string;
+  showCorrectAnswer?: boolean;
+  showExplanation?: boolean;
+  customCategory?: string;
+  programLogo?: string;
+  includeProgramLogo?: boolean;
 }
 
 export async function imageUrlToDataUrl(url: string): Promise<string> {
@@ -68,14 +80,17 @@ export async function imageUrlToDataUrl(url: string): Promise<string> {
 }
 
 /**
- * Generates a beautiful premium PNG image Blob of a quiz item, branded with the App and Ministry logos.
+ * Generates a beautiful modern-style poster image Blob of a quiz item, 
+ * customizable with layout styles, option visibility, and personalized footer.
  */
 export async function generateQuizImageBlob(
   quiz: QuizInput,
-  ministry?: MinistryInput
+  ministry?: MinistryInput,
+  config?: PosterConfig
 ): Promise<Blob> {
-  const defaultAppLogo = "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg";
+  const defaultAppLogo = config?.programLogo?.trim() || "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg";
   const rawMinistryLogo = ministry?.logo || defaultAppLogo;
+  const includeProgramLogo = config?.includeProgramLogo !== false;
 
   // Convert logos to Data URLs to prevent CORS/tainted canvas errors in html-to-image / html2canvas
   const [appLogo, ministryLogo] = await Promise.all([
@@ -83,7 +98,15 @@ export async function generateQuizImageBlob(
     imageUrlToDataUrl(rawMinistryLogo)
   ]);
 
-  const ministryName = ministry?.khmerName || ministry?.name || "វិញ្ញាសាទូទៅ";
+  const layout = config?.layout || 'MODERN_DARK';
+  const showCorrectAnswer = config?.showCorrectAnswer !== false;
+  const showExplanation = config?.showExplanation !== false;
+  const footerBrand = config?.footerBrand?.trim() || "Master Quiz KH • វិញ្ញាសាផ្លូវការ";
+  const footerTagline = config?.footerTagline?.trim() || "កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ និងស្ថាប័នសាធារណៈ";
+  const footerHandle = config?.footerHandle?.trim() || "@qiuzs_bot";
+
+  const ministryName = ministry?.khmerName || ministry?.name || config?.customCategory || "វិញ្ញាសាទូទៅ";
+  const categoryTag = config?.customCategory || (quiz.type === 'qa' ? "សំណួរ-ចម្លើយ" : "ពហុជ្រើសរើស (MCQ)");
 
   // Determine type
   const isMcq =
@@ -103,7 +126,7 @@ export async function generateQuizImageBlob(
         .map((opt, idx) => ({
           label: labels[idx] || String.fromCharCode(65 + idx),
           text: opt,
-          isCorrect: quiz.correctIndex === idx,
+          isCorrect: showCorrectAnswer && quiz.correctIndex === idx,
         }));
     } else if (typeof quiz.options === "object") {
       const entries = Object.entries(quiz.options);
@@ -117,7 +140,7 @@ export async function generateQuizImageBlob(
         return {
           label: displayLabel,
           text: val,
-          isCorrect: quiz.correctAnswer === key,
+          isCorrect: showCorrectAnswer && quiz.correctAnswer === key,
         };
       });
     }
@@ -128,7 +151,7 @@ export async function generateQuizImageBlob(
   card.style.position = "absolute";
   card.style.top = "-9999px";
   card.style.left = "-9999px";
-  card.style.width = "620px";
+  card.style.width = "660px";
   card.style.boxSizing = "border-box";
   card.style.opacity = "1";
   card.style.pointerEvents = "none";
@@ -143,61 +166,318 @@ export async function generateQuizImageBlob(
       .replace(/'/g, "&#039;");
   };
 
+  // Define theme-dependent styles
+  let themeStyles = "";
+  if (layout === 'EDITORIAL_LIGHT') {
+    themeStyles = `
+      .poster-card {
+        background: linear-gradient(150deg, #FFFFFF 0%, #F8FAFC 55%, #F1F5F9 100%);
+        border: 2px solid #E2E8F0;
+        box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.18);
+        color: #0F172A;
+      }
+      .poster-badge-top {
+        background: #094C72;
+        color: #FFFFFF;
+      }
+      .app-name { color: #094C72; }
+      .app-tagline { color: #64748B; }
+      .ministry-badge {
+        background: #F1F5F9;
+        border: 1px solid #CBD5E1;
+        color: #094C72;
+      }
+      .question-badge {
+        background: #EFF6FF;
+        color: #1D4ED8;
+        border: 1px solid #BFDBFE;
+      }
+      .question-text {
+        color: #094C72;
+        text-shadow: none;
+      }
+      .option-item {
+        background: #FFFFFF;
+        border: 1.5px solid #E2E8F0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+      }
+      .option-item-correct {
+        background: #F0FDF4;
+        border: 2px solid #16A34A;
+        box-shadow: 0 4px 16px rgba(22, 163, 74, 0.15);
+      }
+      .option-circle {
+        background: #F8FAFC;
+        border: 1.5px solid #CBD5E1;
+        color: #334155;
+      }
+      .option-circle-correct {
+        background: #16A34A;
+        border-color: #16A34A;
+        color: #FFFFFF;
+        box-shadow: 0 0 10px rgba(22, 163, 74, 0.35);
+      }
+      .option-text { color: #334155; }
+      .option-text-correct { color: #0F172A; font-weight: 700; }
+      .answer-container {
+        background: #F8FAFC;
+        border-left: 5px solid #094C72;
+        border-top: 1px solid #E2E8F0;
+        border-right: 1px solid #E2E8F0;
+        border-bottom: 1px solid #E2E8F0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      }
+      .answer-label { color: #094C72; }
+      .answer-text { color: #1E293B; }
+      .explanation-container {
+        background: #F1F5F9;
+        border: 1.5px dashed #94A3B8;
+      }
+      .explanation-header { color: #094C72; }
+      .explanation-body { color: #475569; }
+      .poster-footer {
+        border-top: 1.5px solid #E2E8F0;
+        background: #FFFFFF;
+      }
+      .footer-brand { color: #094C72; }
+      .footer-tagline { color: #64748B; }
+      .footer-handle {
+        background: #094C72;
+        color: #FFFFFF;
+      }
+    `;
+  } else if (layout === 'ROYAL_GOLD') {
+    themeStyles = `
+      .poster-card {
+        background: linear-gradient(145deg, #093754 0%, #051F30 65%, #02101A 100%);
+        border: 2px solid #D4AF37;
+        box-shadow: 0 35px 75px -15px rgba(2, 16, 26, 0.95);
+        color: #F8FAFC;
+      }
+      .poster-badge-top {
+        background: linear-gradient(90deg, #D4AF37 0%, #FCECB8 100%);
+        color: #031F33;
+      }
+      .app-name { color: #FCECB8; }
+      .app-tagline { color: #94A3B8; }
+      .ministry-badge {
+        background: rgba(212, 175, 55, 0.18);
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        color: #FCECB8;
+      }
+      .question-badge {
+        background: rgba(212, 175, 55, 0.2);
+        color: #FCECB8;
+        border: 1px solid #D4AF37;
+      }
+      .question-text {
+        color: #FFFFFF;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      }
+      .option-item {
+        background: rgba(9, 55, 84, 0.45);
+        border: 1px solid rgba(212, 175, 55, 0.25);
+      }
+      .option-item-correct {
+        background: linear-gradient(90deg, rgba(212, 175, 55, 0.25) 0%, rgba(212, 175, 55, 0.1) 100%);
+        border: 2px solid #D4AF37;
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+      }
+      .option-circle {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1.5px solid rgba(212, 175, 55, 0.35);
+        color: #F8FAFC;
+      }
+      .option-circle-correct {
+        background: #D4AF37;
+        border-color: #D4AF37;
+        color: #031F33;
+        box-shadow: 0 0 14px rgba(212, 175, 55, 0.5);
+      }
+      .option-text { color: #E2E8F0; }
+      .option-text-correct { color: #FFFFFF; font-weight: 700; }
+      .answer-container {
+        background: rgba(212, 175, 55, 0.1);
+        border-left: 5px solid #D4AF37;
+        border-top: 1px solid rgba(212, 175, 55, 0.2);
+        border-right: 1px solid rgba(212, 175, 55, 0.2);
+        border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+      }
+      .answer-label { color: #FCECB8; }
+      .answer-text { color: #FFFFFF; }
+      .explanation-container {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1.5px dashed rgba(212, 175, 55, 0.4);
+      }
+      .explanation-header { color: #FCECB8; }
+      .explanation-body { color: #CBD5E1; }
+      .poster-footer {
+        border-top: 1.5px solid rgba(212, 175, 55, 0.3);
+        background: rgba(3, 31, 51, 0.5);
+      }
+      .footer-brand { color: #FCECB8; }
+      .footer-tagline { color: #94A3B8; }
+      .footer-handle {
+        background: linear-gradient(90deg, #D4AF37 0%, #FCECB8 100%);
+        color: #031F33;
+      }
+    `;
+  } else {
+    // MODERN_DARK (Default)
+    themeStyles = `
+      .poster-card {
+        background: linear-gradient(145deg, #0A263D 0%, #051624 55%, #020C14 100%);
+        border: 1.5px solid rgba(226, 189, 85, 0.45);
+        box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.85);
+        color: #F8FAFC;
+      }
+      .poster-badge-top {
+        background: #E2BD55;
+        color: #092C44;
+      }
+      .app-name { color: #FCECB8; }
+      .app-tagline { color: #94A3B8; }
+      .ministry-badge {
+        background: rgba(226, 189, 85, 0.15);
+        border: 1px solid rgba(226, 189, 85, 0.35);
+        color: #FCECB8;
+      }
+      .question-badge {
+        background: rgba(226, 189, 85, 0.15);
+        color: #E2BD55;
+        border: 1px solid rgba(226, 189, 85, 0.4);
+      }
+      .question-text {
+        color: #FFFFFF;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      }
+      .option-item {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .option-item-correct {
+        background: rgba(226, 189, 85, 0.14);
+        border: 2px solid #E2BD55;
+        box-shadow: 0 4px 20px rgba(226, 189, 85, 0.18);
+      }
+      .option-circle {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1.5px solid rgba(255, 255, 255, 0.2);
+        color: #F1F5F9;
+      }
+      .option-circle-correct {
+        background: #E2BD55;
+        border-color: #E2BD55;
+        color: #092C44;
+        box-shadow: 0 0 12px rgba(226, 189, 85, 0.4);
+      }
+      .option-text { color: #CBD5E1; }
+      .option-text-correct { color: #FFFFFF; font-weight: 700; }
+      .answer-container {
+        background: rgba(226, 189, 85, 0.08);
+        border-left: 5px solid #E2BD55;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        border-right: 1px solid rgba(255,255,255,0.06);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .answer-label { color: #FCECB8; }
+      .answer-text { color: #FFFFFF; }
+      .explanation-container {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1.5px dashed rgba(226, 189, 85, 0.35);
+      }
+      .explanation-header { color: #FCECB8; }
+      .explanation-body { color: #94A3B8; }
+      .poster-footer {
+        border-top: 1px solid rgba(226, 189, 85, 0.25);
+        background: rgba(5, 22, 36, 0.5);
+      }
+      .footer-brand { color: #FCECB8; }
+      .footer-tagline { color: #94A3B8; }
+      .footer-handle {
+        background: #E2BD55;
+        color: #092C44;
+      }
+    `;
+  }
+
   // HTML and CSS Construction
   card.innerHTML = `
     <style>
-      .quiz-card {
+      .poster-card {
         font-family: system-ui, -apple-system, sans-serif, 'Khmer OS', 'Khmer OS System';
-        background: linear-gradient(135deg, #094C72 0%, #031F33 100%);
-        border: 2px solid #D4AF37;
-        border-radius: 32px;
-        padding: 44px;
-        box-shadow: 0 30px 60px -12px rgba(3, 23, 37, 0.7);
-        color: #F8FAFC;
+        border-radius: 28px;
+        padding: 0;
         position: relative;
         overflow: hidden;
         box-sizing: border-box;
-        width: 620px;
+        width: 660px;
       }
       
-      /* Premium radial glow effect */
-      .quiz-card::after {
+      /* Subtle radial ambiance */
+      .poster-card::before {
         content: '';
         position: absolute;
-        top: -150px;
-        right: -150px;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(212, 175, 55, 0.12) 0%, transparent 70%);
+        top: -120px;
+        right: -120px;
+        width: 360px;
+        height: 360px;
+        background: radial-gradient(circle, rgba(226, 189, 85, 0.12) 0%, transparent 70%);
         pointer-events: none;
         z-index: 1;
       }
+
+      .poster-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 36px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        position: relative;
+        z-index: 2;
+      }
+
+      .poster-badge-top {
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 9.5px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
       
+      .poster-body {
+        padding: 32px 36px 36px 36px;
+        position: relative;
+        z-index: 2;
+      }
+
       .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        position: relative;
-        z-index: 2;
-        border-bottom: 1.5px solid rgba(212, 175, 55, 0.2);
-        padding-bottom: 24px;
-        margin-bottom: 32px;
+        margin-bottom: 26px;
       }
       
       .header-left {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 14px;
       }
       
       .app-logo-container {
         position: relative;
-        width: 64px;
-        height: 64px;
-        border-radius: 18px;
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
         border: 2px solid #D4AF37;
         background: #FFFFFF;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
         overflow: hidden;
         display: flex;
         align-items: center;
@@ -216,105 +496,73 @@ export async function generateQuizImageBlob(
       }
       
       .app-name {
-        font-family: system-ui, -apple-system, sans-serif, 'Khmer OS', 'Khmer OS System';
         font-weight: 800;
-        color: #FCECB8;
-        font-size: 16px;
+        font-size: 15px;
         line-height: 1.4;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
       }
       
       .app-tagline {
-        font-size: 11px;
-        color: #94a3b8;
+        font-size: 10.5px;
         font-weight: 600;
-        letter-spacing: 0.02em;
         margin-top: 2px;
       }
       
       .ministry-badge {
         display: flex;
         align-items: center;
-        gap: 10px;
-        background: rgba(212, 175, 55, 0.15);
-        border: 1px solid rgba(212, 175, 55, 0.3);
-        padding: 8px 16px;
-        border-radius: 14px;
-        color: #FCECB8;
-        font-size: 12px;
+        gap: 8px;
+        padding: 7px 14px;
+        border-radius: 12px;
+        font-size: 11.5px;
         font-weight: 700;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       }
 
       .ministry-logo {
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
         object-fit: contain;
         background: white;
         padding: 1.5px;
       }
       
-      .body-content {
-        position: relative;
-        z-index: 2;
-      }
-      
       .question-badge {
-        background: #D4AF37;
-        color: #031F33;
-        font-family: system-ui, -apple-system, sans-serif, 'Khmer OS', 'Khmer OS System';
         font-weight: 800;
         font-size: 10px;
-        padding: 5px 14px;
+        padding: 5px 12px;
         border-radius: 8px;
         display: inline-block;
         margin-bottom: 16px;
-        text-transform: uppercase;
         letter-spacing: 0.02em;
       }
       
       .question-text {
-        font-size: 19px;
+        font-size: 18.5px;
         font-weight: 700;
         line-height: 1.7;
-        color: #FFFFFF;
-        margin-bottom: 28px;
+        margin-bottom: 24px;
         white-space: pre-wrap;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.1);
       }
       
       .options-grid {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 12px;
       }
       
       .option-item {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
-        padding: 16px 20px;
+        padding: 14px 18px;
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 14px;
         box-sizing: border-box;
-        transition: all 0.2s ease;
-      }
-      
-      .option-item-correct {
-        background: rgba(212, 175, 55, 0.12);
-        border: 2px solid #D4AF37;
-        box-shadow: 0 4px 20px rgba(212, 175, 55, 0.1);
       }
       
       .option-circle {
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1.5px solid rgba(255, 255, 255, 0.2);
-        color: #F1F5F9;
         font-weight: 800;
         font-size: 12px;
         display: flex;
@@ -323,165 +571,186 @@ export async function generateQuizImageBlob(
         flex-shrink: 0;
       }
       
-      .option-circle-correct {
-        background: #D4AF37;
-        border-color: #D4AF37;
-        color: #031F33;
-        box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
-      }
-      
       .option-text {
-        font-size: 15px;
-        line-height: 1.6;
-        color: #cbd5e1;
-      }
-      
-      .option-text-correct {
-        color: #FFFFFF;
-        font-weight: 700;
+        font-size: 14.5px;
+        line-height: 1.55;
+        flex: 1;
       }
 
       .answer-container {
-        background: rgba(212, 175, 55, 0.08);
-        border-left: 5px solid #D4AF37;
-        border-radius: 6px 18px 18px 6px;
-        padding: 22px;
-        margin-top: 12px;
+        border-radius: 6px 16px 16px 6px;
+        padding: 18px 22px;
+        margin-top: 14px;
         box-sizing: border-box;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       }
 
       .answer-label {
-        font-family: system-ui, -apple-system, sans-serif, 'Khmer OS', 'Khmer OS System';
         font-weight: 800;
-        color: #FCECB8;
-        font-size: 12px;
-        margin-bottom: 8px;
-        text-transform: uppercase;
+        font-size: 11.5px;
+        margin-bottom: 6px;
         letter-spacing: 0.03em;
+        text-transform: uppercase;
       }
 
       .answer-text {
-        font-size: 15px;
+        font-size: 14.5px;
         line-height: 1.7;
-        color: #FFFFFF;
         white-space: pre-wrap;
       }
       
       .explanation-container {
-        background: rgba(0, 0, 0, 0.15);
-        border: 1.5px dashed rgba(212, 175, 55, 0.4);
-        border-radius: 20px;
-        padding: 24px;
-        margin-top: 32px;
+        border-radius: 16px;
+        padding: 18px 22px;
+        margin-top: 24px;
         box-sizing: border-box;
       }
       
       .explanation-header {
-        font-family: system-ui, -apple-system, sans-serif, 'Khmer OS', 'Khmer OS System';
         font-weight: 800;
-        color: #FCECB8;
-        font-size: 12px;
-        margin-bottom: 10px;
+        font-size: 11.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
       
       .explanation-body {
         font-size: 13px;
         line-height: 1.7;
-        color: #94a3b8;
-        font-style: italic;
         white-space: pre-wrap;
       }
       
-      .footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+      /* Modern Poster Footer */
+      .poster-footer {
+        padding: 20px 36px;
         position: relative;
         z-index: 2;
-        margin-top: 36px;
-        border-top: 1px solid rgba(212, 175, 55, 0.2);
-        padding-top: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .footer-left {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .footer-brand {
+        font-size: 12.5px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+
+      .footer-tagline {
         font-size: 10px;
-        color: rgba(203, 213, 225, 0.4);
         font-weight: 500;
       }
-      
-      .footer-tag {
+
+      .footer-handle {
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 11px;
         font-weight: 800;
-        color: rgba(212, 175, 55, 0.5);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
+
+      ${themeStyles}
     </style>
     
-    <div class="quiz-card">
-      <div class="header">
-        <div class="header-left">
-          <div class="app-logo-container">
-            <img class="app-logo" src="${appLogo}" alt="App Logo" crossorigin="anonymous" />
-          </div>
-          <div class="brand-info">
-            <span class="app-name">កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ</span>
-            <span class="app-tagline">វិញ្ញាសា និងគន្លឹះដោះស្រាយផ្លូវការ</span>
-          </div>
-        </div>
-        
-        <div class="ministry-badge">
-          <img class="ministry-logo" src="${ministryLogo}" alt="Ministry Logo" crossorigin="anonymous" />
-          <span>${escapeHTML(ministryName)}</span>
-        </div>
+    <div class="poster-card">
+      <div class="poster-header-bar">
+        <span class="poster-badge-top">🇰🇭 OFFICIAL WORKSHEET</span>
+        <span>${escapeHTML(categoryTag)}</span>
       </div>
-      
-      <div class="body-content">
-        <span class="question-badge">${isMcq ? "សំណួរពហុចម្លើយ" : "សំណួរចម្លើយខ្លី"}</span>
-        <div class="question-text">${escapeHTML(quiz.question)}</div>
-        
-        ${
-          isMcq
-            ? `
-          <div class="options-grid">
-            ${parsedOptions
-              .map(
-                (opt) => `
-              <div class="option-item ${opt.isCorrect ? "option-item-correct" : ""}">
-                <div class="option-circle ${opt.isCorrect ? "option-circle-correct" : ""}">
-                  ${opt.label}
-                </div>
-                <div class="option-text ${opt.isCorrect ? "option-text-correct" : ""}">
-                  ${escapeHTML(opt.text)}
-                </div>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
-        `
-            : `
-          <div class="answer-container">
-            <div class="answer-label">ចម្លើយត្រឹមត្រូវ</div>
-            <div class="answer-text">${escapeHTML(quiz.answer) || "សូមពិនិត្យការពន្យល់លម្អិតខាងក្រោម"}</div>
-          </div>
-        `
-        }
-        
-        ${
-          quiz.explanation && quiz.explanation.trim() !== ""
-            ? `
-          <div class="explanation-container">
-            <div class="explanation-header">
-              <span>💡 ការពន្យល់ និងឯកសារយោង</span>
+
+      <div class="poster-body">
+        <div class="header">
+          <div class="header-left">
+            ${includeProgramLogo ? `
+            <div class="app-logo-container" title="Program Logo">
+              <img class="app-logo" src="${appLogo}" alt="Program Logo" crossorigin="anonymous" />
             </div>
-            <div class="explanation-body">${escapeHTML(quiz.explanation)}</div>
+            ` : ''}
+            <div class="brand-info">
+              <span class="app-name">វិញ្ញាសា • កម្មវិធីត្រៀមប្រឡង</span>
+              <span class="app-tagline">Vignasa Cambodia Platform</span>
+            </div>
           </div>
-        `
-            : ""
-        }
+          
+          <div class="ministry-badge">
+            <img class="ministry-logo" src="${ministryLogo}" alt="Ministry Logo" crossorigin="anonymous" />
+            <span>${escapeHTML(ministryName)}</span>
+          </div>
+        </div>
+        
+        <div>
+          <span class="question-badge">${isMcq ? "សំណួរពហុជ្រើសរើស (MCQ)" : "សំណួរ-ចម្លើយខ្លី"}</span>
+          <div class="question-text">${escapeHTML(quiz.question)}</div>
+          
+          ${
+            isMcq
+              ? `
+            <div class="options-grid">
+              ${parsedOptions
+                .map(
+                  (opt) => `
+                <div class="option-item ${opt.isCorrect ? "option-item-correct" : ""}">
+                  <div class="option-circle ${opt.isCorrect ? "option-circle-correct" : ""}">
+                    ${opt.label}
+                  </div>
+                  <div class="option-text ${opt.isCorrect ? "option-text-correct" : ""}">
+                    ${escapeHTML(opt.text)}
+                  </div>
+                  ${opt.isCorrect ? `<span style="font-size: 13px;">✅</span>` : ''}
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          `
+              : showCorrectAnswer ? `
+            <div class="answer-container">
+              <div class="answer-label">ចម្លើយត្រឹមត្រូវ</div>
+              <div class="answer-text">${escapeHTML(quiz.answer) || "សូមពិនិត្យការពន្យល់លម្អិតខាងក្រោម"}</div>
+            </div>
+          ` : `
+            <div class="answer-challenge-box" style="margin-top: 16px; padding: 14px 18px; border-radius: 14px; border: 1.5px dashed rgba(226, 189, 85, 0.4); background: rgba(226, 189, 85, 0.06); display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 16px;">✍️</span>
+              <span style="font-size: 13px; font-weight: 700; opacity: 0.9;">សូមចូលរួមបញ្ចេញមតិ ឬពិនិត្យចម្លើយក្នុងសារអត្ថបទខាងក្រោម 👇</span>
+            </div>
+          `
+          }
+          
+          ${
+            showCorrectAnswer && showExplanation && quiz.explanation && quiz.explanation.trim() !== ""
+              ? `
+            <div class="explanation-container">
+              <div class="explanation-header">
+                <span>💡 ការពន្យល់ និងឯកសារយោង</span>
+              </div>
+              <div class="explanation-body">${escapeHTML(quiz.explanation)}</div>
+            </div>
+          `
+              : ""
+          }
+        </div>
       </div>
       
-      <div class="footer">
-        <div class="footer-tag">© Vignasa Cambodia • App Platform</div>
-        <div>ព័ត៌មានលម្អិត និងវិញ្ញាសាជាច្រើនទៀតមាននៅក្នុងកម្មវិធី</div>
+      <div class="poster-footer">
+        <div class="footer-left">
+          <div class="footer-brand">${escapeHTML(footerBrand)}</div>
+          <div class="footer-tagline">${escapeHTML(footerTagline)}</div>
+        </div>
+        <div class="footer-handle">
+          <span>✈️</span>
+          <span>${escapeHTML(footerHandle)}</span>
+        </div>
       </div>
     </div>
   `;
@@ -515,7 +784,7 @@ export async function generateQuizImageBlob(
           pixelRatio: 2,
           skipFonts: true,
           cacheBust: true,
-          backgroundColor: "#031F33",
+          backgroundColor: layout === 'EDITORIAL_LIGHT' ? '#F8FAFC' : '#041421',
         });
         if (b && b.size > 0) {
           blob = b;
@@ -532,8 +801,8 @@ export async function generateQuizImageBlob(
         useCORS: true,
         allowTaint: true,
         logging: false,
-        backgroundColor: "#031F33",
-        width: 620,
+        backgroundColor: layout === 'EDITORIAL_LIGHT' ? '#F8FAFC' : '#041421',
+        width: 660,
       });
       
       blob = await new Promise<Blob>((resolve, reject) => {
@@ -566,52 +835,49 @@ export async function generateQuizImageBlob(
     }
 
     if (!blob || blob.size === 0) {
-      console.warn("DOM snapshot failed or tainted, using robust canvas rendering fallback.");
+      console.warn("DOM snapshot failed, using canvas rendering fallback.");
       const fallbackCanvas = document.createElement("canvas");
-      fallbackCanvas.width = 1240;
-      fallbackCanvas.height = 1240;
+      fallbackCanvas.width = 1320;
+      fallbackCanvas.height = 1400;
       const ctx = fallbackCanvas.getContext("2d");
       if (ctx) {
         // Gradient background
-        const grad = ctx.createLinearGradient(0, 0, 1240, 1240);
-        grad.addColorStop(0, "#094C72");
-        grad.addColorStop(1, "#031F33");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 1240, 1240);
+        const grad = ctx.createLinearGradient(0, 0, 1320, 1400);
+        if (layout === 'EDITORIAL_LIGHT') {
+          grad.addColorStop(0, "#FFFFFF");
+          grad.addColorStop(1, "#F1F5F9");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 1320, 1400);
+          ctx.strokeStyle = "#E2E8F0";
+        } else {
+          grad.addColorStop(0, "#0A263D");
+          grad.addColorStop(1, "#020C14");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 1320, 1400);
+          ctx.strokeStyle = "#D4AF37";
+        }
+        ctx.lineWidth = 12;
+        ctx.strokeRect(24, 24, 1272, 1352);
 
-        // Gold border
-        ctx.strokeStyle = "#D4AF37";
-        ctx.lineWidth = 16;
-        ctx.strokeRect(30, 30, 1180, 1180);
-
-        // Header / Ministry badge
-        ctx.fillStyle = "rgba(212, 175, 55, 0.15)";
-        ctx.fillRect(60, 60, 1120, 100);
-        ctx.fillStyle = "#FCECB8";
+        // Header
+        ctx.fillStyle = layout === 'EDITORIAL_LIGHT' ? "#094C72" : "#FCECB8";
         ctx.font = "bold 38px sans-serif";
-        ctx.fillText(ministryName, 90, 124);
+        ctx.fillText(ministryName, 60, 110);
 
-        // Question Type Tag
-        ctx.fillStyle = "#D4AF37";
-        ctx.fillRect(60, 200, 220, 56);
-        ctx.fillStyle = "#031F33";
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText(quiz.type === "mcq" ? "សំណួរពហុជម្រើស" : "សំណួរអត្ថបទ", 85, 238);
-
-        // Question text wrapping
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 42px sans-serif";
+        // Question
+        ctx.fillStyle = layout === 'EDITORIAL_LIGHT' ? "#0F172A" : "#FFFFFF";
+        ctx.font = "bold 36px sans-serif";
         const text = String(quiz.question || "សំណួរវិញ្ញាសា");
         const words = text.split(' ');
         let line = "";
-        let testY = 320;
+        let testY = 220;
         for (let i = 0; i < words.length; i++) {
           const testLine = line + words[i] + " ";
           const metrics = ctx.measureText(testLine);
-          if (metrics.width > 1100 && i > 0) {
+          if (metrics.width > 1180 && i > 0) {
             ctx.fillText(line, 60, testY);
             line = words[i] + " ";
-            testY += 60;
+            testY += 56;
           } else {
             line = testLine;
           }
@@ -619,16 +885,17 @@ export async function generateQuizImageBlob(
         ctx.fillText(line, 60, testY);
 
         // Footer brand
-        ctx.fillStyle = "rgba(212, 175, 55, 0.5)";
+        ctx.fillStyle = layout === 'EDITORIAL_LIGHT' ? "#094C72" : "#FCECB8";
+        ctx.font = "bold 26px sans-serif";
+        ctx.fillText(footerBrand, 60, 1310);
         ctx.font = "bold 24px sans-serif";
-        ctx.fillText("© VIGNASA CAMBODIA • MINISTRY HUB", 60, 1160);
+        ctx.fillText(`✈️ ${footerHandle}`, 1000, 1310);
 
         blob = await new Promise<Blob>((resolve) => {
           fallbackCanvas.toBlob((b) => {
             if (b && b.size > 0) {
               resolve(b);
             } else {
-              // Absolute fallback 1x1 transparent PNG if all else fails
               const tinyDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
               const arr = tinyDataUrl.split(',');
               const bstr = atob(arr[1] || "");
@@ -653,4 +920,3 @@ export async function generateQuizImageBlob(
     }
   }
 }
-

@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { setDoc, doc, deleteDoc, collection, onSnapshot, updateDoc } from 'firebase/firestore';
 import { Ministry, QuizCategory, ShortAnswerCategory } from '@/lib/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Save, X, Pencil, ArrowLeft, ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, ExternalLink, Send, Users, Shield, Crown, Key, BookOpen, Building2 } from 'lucide-react';
+import { Save, X, Pencil, ArrowLeft, ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, ExternalLink, Send, Users, Shield, Crown, Key, BookOpen, Building2, Eye, Download, Palette, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import SafeImage from '@/components/SafeImage';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -20,6 +20,7 @@ interface AdminQuizItem {
   question: string;
   options?: string[];
   correctIndex?: number;
+  correctAnswer?: string;
   answer?: string;
   explanation?: string;
 }
@@ -749,13 +750,151 @@ export default function AdminPage() {
   const [telegramProgress, setTelegramProgress] = useState("");
   const [telegramError, setTelegramError] = useState("");
 
-  // Load chat ID on mount
+  // Telegram Image Poster Customization State
+  const [posterLayout, setPosterLayout] = useState<'MODERN_DARK' | 'EDITORIAL_LIGHT' | 'ROYAL_GOLD'>('MODERN_DARK');
+  const [posterFooterBrand, setPosterFooterBrand] = useState('Master Quiz KH • វិញ្ញាសាផ្លូវការ');
+  const [posterFooterTagline, setPosterFooterTagline] = useState('កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ និងស្ថាប័នសាធារណៈ');
+  const [posterFooterHandle, setPosterFooterHandle] = useState('@qiuzs_bot');
+  const [posterShowAnswer, setPosterShowAnswer] = useState(true);
+  const [posterShowExplanation, setPosterShowExplanation] = useState(true);
+  const [posterIncludeProgramLogo, setPosterIncludeProgramLogo] = useState(true);
+  const [posterProgramLogo, setPosterProgramLogo] = useState('https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg');
+  const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
+  const [isPreviewingPoster, setIsPreviewingPoster] = useState(false);
+
+  // Telegram Text Format Customization State
+  const [textIncludeAnswer, setTextIncludeAnswer] = useState(true);
+  const [textUseSpoiler, setTextUseSpoiler] = useState(false);
+  const [textIncludeExplanation, setTextIncludeExplanation] = useState(true);
+
+  // Load chat ID and poster preferences on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vignasa_telegram_chat_id') || localStorage.getItem('telegramChatId') || "";
-      setTelegramChatId(saved);
+      if (saved) setTelegramChatId(saved);
+
+      const savedLayout = localStorage.getItem('vignasa_poster_layout') as 'MODERN_DARK' | 'EDITORIAL_LIGHT' | 'ROYAL_GOLD' | null;
+      if (savedLayout) setPosterLayout(savedLayout);
+
+      const savedBrand = localStorage.getItem('vignasa_poster_footer_brand');
+      if (savedBrand) setPosterFooterBrand(savedBrand);
+
+      const savedTagline = localStorage.getItem('vignasa_poster_footer_tagline');
+      if (savedTagline) setPosterFooterTagline(savedTagline);
+
+      const savedHandle = localStorage.getItem('vignasa_poster_footer_handle');
+      if (savedHandle) setPosterFooterHandle(savedHandle);
+
+      const savedShowAnswer = localStorage.getItem('vignasa_poster_show_answer');
+      if (savedShowAnswer !== null) setPosterShowAnswer(savedShowAnswer === 'true');
+
+      const savedShowExp = localStorage.getItem('vignasa_poster_show_exp');
+      if (savedShowExp !== null) setPosterShowExplanation(savedShowExp === 'true');
+
+      const savedIncLogo = localStorage.getItem('vignasa_poster_inc_logo');
+      if (savedIncLogo !== null) setPosterIncludeProgramLogo(savedIncLogo === 'true');
+
+      const savedLogo = localStorage.getItem('vignasa_poster_logo');
+      if (savedLogo) setPosterProgramLogo(savedLogo);
+
+      const savedTextAns = localStorage.getItem('vignasa_text_show_answer');
+      if (savedTextAns !== null) setTextIncludeAnswer(savedTextAns === 'true');
+
+      const savedTextSpoiler = localStorage.getItem('vignasa_text_use_spoiler');
+      if (savedTextSpoiler !== null) setTextUseSpoiler(savedTextSpoiler === 'true');
+
+      const savedTextExp = localStorage.getItem('vignasa_text_show_exp');
+      if (savedTextExp !== null) setTextIncludeExplanation(savedTextExp === 'true');
     }
   }, []);
+
+  const savePosterConfig = (
+    layoutVal: 'MODERN_DARK' | 'EDITORIAL_LIGHT' | 'ROYAL_GOLD',
+    brandVal: string,
+    taglineVal: string,
+    handleVal: string,
+    ansVal: boolean,
+    expVal: boolean,
+    incLogoVal: boolean = true,
+    logoVal: string = "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg"
+  ) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vignasa_poster_layout', layoutVal);
+      localStorage.setItem('vignasa_poster_footer_brand', brandVal);
+      localStorage.setItem('vignasa_poster_footer_tagline', taglineVal);
+      localStorage.setItem('vignasa_poster_footer_handle', handleVal);
+      localStorage.setItem('vignasa_poster_show_answer', String(ansVal));
+      localStorage.setItem('vignasa_poster_show_exp', String(expVal));
+      localStorage.setItem('vignasa_poster_inc_logo', String(incLogoVal));
+      localStorage.setItem('vignasa_poster_logo', logoVal);
+    }
+  };
+
+  const handleGeneratePosterPreview = async () => {
+    if (!sendingQuiz) return;
+    setIsPreviewingPoster(true);
+    setTelegramError("");
+    try {
+      if (posterPreviewUrl) {
+        URL.revokeObjectURL(posterPreviewUrl);
+        setPosterPreviewUrl(null);
+      }
+      savePosterConfig(
+        posterLayout,
+        posterFooterBrand,
+        posterFooterTagline,
+        posterFooterHandle,
+        posterShowAnswer,
+        posterShowExplanation,
+        posterIncludeProgramLogo,
+        posterProgramLogo
+      );
+
+      const blob = await generateQuizImageBlob(
+        {
+          question: sendingQuiz.question,
+          type: sendingQuizType || 'mcq',
+          options: sendingQuiz.options,
+          correctIndex: sendingQuiz.correctIndex,
+          answer: sendingQuiz.answer,
+          explanation: sendingQuiz.explanation
+        },
+        {
+          khmerName: editForm?.khmerName,
+          name: editForm?.name,
+          logo: editForm?.logo
+        },
+        {
+          layout: posterLayout,
+          footerBrand: posterFooterBrand,
+          footerTagline: posterFooterTagline,
+          footerHandle: posterFooterHandle,
+          showCorrectAnswer: posterShowAnswer,
+          showExplanation: posterShowExplanation,
+          customCategory: sendingCategoryName,
+          includeProgramLogo: posterIncludeProgramLogo,
+          programLogo: posterProgramLogo
+        }
+      );
+      if (blob && blob.size > 0) {
+        const url = URL.createObjectURL(blob);
+        setPosterPreviewUrl(url);
+      }
+    } catch (e: unknown) {
+      console.error("Preview generation error:", e);
+      setTelegramError("មិនអាចបង្កើតរូបភាពគំរូបានទេ៖ " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setIsPreviewingPoster(false);
+    }
+  };
+
+  const handleCloseTelegramModal = () => {
+    setSendingQuiz(null);
+    if (posterPreviewUrl) {
+      URL.revokeObjectURL(posterPreviewUrl);
+      setPosterPreviewUrl(null);
+    }
+  };
 
   const handleSendTelegramQuiz = async () => {
     if (!sendingQuiz || !telegramChatId) {
@@ -780,34 +919,68 @@ export default function AdminPage() {
         const categoryFooter = `${editForm?.khmerName || editForm?.name || 'ទូទៅ'}${sendingCategoryName ? `_${sendingCategoryName.replace(/[\s>]+/g, '_')}` : ''}`;
         
         if (telegramFormat === 'TEXT') {
-          let text = `<b>សំណួរ៖</b> ${escapeHTML(sendingQuiz.question || '')}\n\n`;
-          if (sendingQuizType === 'mcq' && sendingQuiz.options && Array.isArray(sendingQuiz.options)) {
-            sendingQuiz.options.forEach((opt: string, idx: number) => {
-              if (opt) {
-                const label = ["A", "B", "C", "D"][idx] || String.fromCharCode(65 + idx);
-                text += `<b>${label}.</b> ${escapeHTML(opt)}\n`;
+          // Compute options and extract correct answer
+          const labels = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
+          const enLabels = ["A", "B", "C", "D", "E", "F", "G"];
+          let optionsBlock = "";
+          let correctAnswerFormatted = "";
+
+          if (sendingQuizType === 'mcq' && sendingQuiz.options) {
+            if (Array.isArray(sendingQuiz.options)) {
+              const validOpts = sendingQuiz.options.filter(o => o && o.trim() !== "");
+              optionsBlock = validOpts.map((opt: string, idx: number) => {
+                const kLabel = labels[idx] || String.fromCharCode(65 + idx);
+                const eLabel = enLabels[idx] || String.fromCharCode(65 + idx);
+                return `<b>${kLabel} (${eLabel}).</b> ${escapeHTML(opt)}`;
+              }).join("\n");
+
+              let targetIdx = sendingQuiz.correctIndex;
+              if (targetIdx === undefined && sendingQuiz.correctAnswer) {
+                const ca = sendingQuiz.correctAnswer.toUpperCase();
+                const foundIdx = enLabels.indexOf(ca);
+                if (foundIdx !== -1) targetIdx = foundIdx;
               }
-            });
-            const correctLabel = ["A", "B", "C", "D"][sendingQuiz.correctIndex ?? 0] || "A";
-            text += `\n<b>ចម្លើយត្រឹមត្រូវ៖</b> ${correctLabel}`;
+
+              if (targetIdx !== undefined && validOpts[targetIdx]) {
+                const kLabel = labels[targetIdx] || String.fromCharCode(65 + targetIdx);
+                const eLabel = enLabels[targetIdx] || String.fromCharCode(65 + targetIdx);
+                correctAnswerFormatted = `${kLabel} (${eLabel}). ${validOpts[targetIdx]}`;
+              } else if (validOpts[0]) {
+                correctAnswerFormatted = `${labels[0]} (${enLabels[0]}). ${validOpts[0]}`;
+              }
+            }
           } else {
-            text += `<b>ចម្លើយ៖</b> ${escapeHTML(sendingQuiz.answer || '')}`;
-          }
-          
-          let formattedExplanation = "";
-          if (sendingQuiz.explanation) {
-             const trimmedExp = sendingQuiz.explanation.trim();
-             if (/^(ពន្យល់|យោង|ឯកសារយោង)/.test(trimmedExp)) {
-                formattedExplanation = trimmedExp;
-             } else {
-                formattedExplanation = `ពន្យល់ ៖ ${trimmedExp}`;
-             }
+            correctAnswerFormatted = sendingQuiz.answer || "";
           }
 
-          text += `\n\n<a href="https://t.me/qiuzs_bot">Master Quiz KH</a> | វិញ្ញាសា | ${categoryFooter}`;
-          if (formattedExplanation) {
-            text += `\n\n<b>${escapeHTML(formattedExplanation)}</b>`;
+          let text = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
+          text += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
+          text += `❓ <b>សំណួរ៖</b>\n${escapeHTML(sendingQuiz.question || '')}\n\n`;
+
+          if (sendingQuizType === 'mcq' && optionsBlock) {
+            text += `<b>ជម្រើសចម្លើយ៖</b>\n${optionsBlock}\n\n`;
           }
+
+          // User Requirement: "For text submissions, please provide the correct answer."
+          if (textIncludeAnswer && correctAnswerFormatted) {
+            if (textUseSpoiler) {
+              text += `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFormatted)}</b></tg-spoiler>\n`;
+            } else {
+              text += `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <b>${escapeHTML(correctAnswerFormatted)}</b>\n`;
+            }
+          }
+
+          if (textIncludeExplanation && sendingQuiz.explanation && sendingQuiz.explanation.trim() !== "") {
+            const trimmedExp = sendingQuiz.explanation.trim();
+            const formattedExp = /^(ពន្យល់|យោង|ឯកសារយោង)/.test(trimmedExp) ? trimmedExp : `ពន្យល់ ៖ ${trimmedExp}`;
+            text += `\n💡 <b>ការពន្យល់/យោង៖</b>\n${escapeHTML(formattedExp)}\n`;
+          }
+
+          const footerLink = posterFooterHandle.startsWith('@') 
+            ? `https://t.me/${posterFooterHandle.replace('@', '')}` 
+            : 'https://t.me/qiuzs_bot';
+
+          text += `\n✈️ <a href="${footerLink}">${escapeHTML(posterFooterBrand || 'Master Quiz KH')}</a> | ${escapeHTML(posterFooterHandle || '@qiuzs_bot')}`;
 
         const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
@@ -881,8 +1054,19 @@ export default function AdminPage() {
         if (!res.ok) throw new Error((await res.json()).description);
 
       } else if (telegramFormat === 'IMAGE') {
-        setTelegramProgress("កំពុងបង្កើតរូបភាព...");
+        setTelegramProgress("កំពុងបង្កើតរូបភាព Poster...");
         
+        savePosterConfig(
+          posterLayout, 
+          posterFooterBrand, 
+          posterFooterTagline, 
+          posterFooterHandle, 
+          posterShowAnswer, 
+          posterShowExplanation,
+          posterIncludeProgramLogo,
+          posterProgramLogo
+        );
+
         const blob = await generateQuizImageBlob(
           {
             question: sendingQuiz.question,
@@ -896,37 +1080,121 @@ export default function AdminPage() {
             khmerName: editForm?.khmerName,
             name: editForm?.name,
             logo: editForm?.logo
+          },
+          {
+            layout: posterLayout,
+            footerBrand: posterFooterBrand,
+            footerTagline: posterFooterTagline,
+            footerHandle: posterFooterHandle,
+            showCorrectAnswer: posterShowAnswer,
+            showExplanation: posterShowExplanation,
+            customCategory: sendingCategoryName,
+            includeProgramLogo: posterIncludeProgramLogo,
+            programLogo: posterProgramLogo
           }
         );
 
-        if (!blob || blob.size === 0) throw new Error("បរាជ័យក្នុងការបង្កើតឯកសាររូបភាព!");
+        if (!blob || blob.size === 0) throw new Error("បរាជ័យក្នុងការបង្កើតឯកសាររូបភាព Poster!");
 
-        setTelegramProgress("កំពុងផ្ញើរូបភាពទៅ Telegram...");
+        setTelegramProgress("កំពុងផ្ញើរូបភាព Poster ទៅ Telegram...");
         const formData = new FormData();
         formData.append("chat_id", telegramChatId.trim());
-        formData.append("photo", blob, "quiz.png");
+        formData.append("photo", blob, "quiz_poster.png");
 
-        let caption = `<b>សំណួរ៖</b> ${escapeHTML((sendingQuiz.question || '').substring(0, 300))}`;
-        if (sendingQuizType === 'mcq') {
-          caption += `\n<i>(សូមពិនិត្យចម្លើយត្រឹមត្រូវ និងការពន្យល់ក្នុងរូបភាព)</i>`;
+        // Format options and extract correct answer
+        let optionsFormattedText = "";
+        let correctAnswerFullText = "";
+
+        if (sendingQuizType === 'mcq' && sendingQuiz.options) {
+          if (Array.isArray(sendingQuiz.options)) {
+            const labels = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
+            const validOpts = sendingQuiz.options.filter(o => o && o.trim() !== "");
+            optionsFormattedText = validOpts.map((opt, i) => `${labels[i] || String.fromCharCode(65 + i)}. ${opt}`).join("\n");
+            if (sendingQuiz.correctIndex !== undefined && validOpts[sendingQuiz.correctIndex]) {
+              const letter = labels[sendingQuiz.correctIndex] || String.fromCharCode(65 + sendingQuiz.correctIndex);
+              correctAnswerFullText = `${letter}. ${validOpts[sendingQuiz.correctIndex]}`;
+            }
+          } else if (typeof sendingQuiz.options === 'object' && sendingQuiz.options !== null) {
+            const optsObj = sendingQuiz.options as Record<string, string>;
+            const entries = Object.entries(optsObj);
+            optionsFormattedText = entries.map(([k, v]) => {
+              const lbl = k === 'A' ? 'ក' : k === 'B' ? 'ខ' : k === 'C' ? 'គ' : k === 'D' ? 'ឃ' : k;
+              return `${lbl}. ${v}`;
+            }).join("\n");
+            if (sendingQuiz.correctAnswer && optsObj[sendingQuiz.correctAnswer]) {
+              const k = sendingQuiz.correctAnswer;
+              const lbl = k === 'A' ? 'ក' : k === 'B' ? 'ខ' : k === 'C' ? 'គ' : k === 'D' ? 'ឃ' : k;
+              correctAnswerFullText = `${lbl}. ${optsObj[k]}`;
+            }
+          }
         } else {
-          caption += `\n<b>ចម្លើយ៖</b> ${escapeHTML((sendingQuiz.answer || '').substring(0, 150))}`;
+          correctAnswerFullText = sendingQuiz.answer || "";
         }
 
-        let formattedExplanation = "";
-        if (sendingQuiz.explanation) {
-           const trimmedExp = sendingQuiz.explanation.trim();
-           if (/^(ពន្យល់|យោង|ឯកសារយោង)/.test(trimmedExp)) {
-              formattedExplanation = trimmedExp;
-           } else {
-              formattedExplanation = `ពន្យល់ ៖ ${trimmedExp}`;
-           }
+        const footerLink = posterFooterHandle.startsWith('@') 
+          ? `https://t.me/${posterFooterHandle.replace('@', '')}` 
+          : 'https://t.me/qiuzs_bot';
+
+        let caption = "";
+        let companionFullMessage = "";
+
+        if (!posterShowAnswer) {
+          // =========================================================================
+          // IMAGE CONTAINS ONLY THE QUESTION:
+          // User Requirement: "If the image contains only the question, please also 
+          // provide the question and answer as text alongside the image."
+          // =========================================================================
+          let fullCompanion = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
+          fullCompanion += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
+          fullCompanion += `❓ <b>សំណួរ៖</b>\n${escapeHTML(sendingQuiz.question || '')}\n\n`;
+
+          if (sendingQuizType === 'mcq' && optionsFormattedText) {
+            fullCompanion += `<b>ជម្រើសចម្លើយ៖</b>\n${escapeHTML(optionsFormattedText)}\n\n`;
+          }
+
+          if (correctAnswerFullText) {
+            fullCompanion += `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFullText)}</b></tg-spoiler>\n`;
+          }
+
+          if (sendingQuiz.explanation && sendingQuiz.explanation.trim() !== "") {
+            const trimmedExp = sendingQuiz.explanation.trim();
+            const expFormatted = /^(ពន្យល់|យោង|ឯកសារយោង)/.test(trimmedExp) ? trimmedExp : `ពន្យល់ ៖ ${trimmedExp}`;
+            fullCompanion += `\n💡 <b>ការពន្យល់/យោង៖</b>\n${escapeHTML(expFormatted)}\n`;
+          }
+
+          fullCompanion += `\n✈️ <a href="${footerLink}">${escapeHTML(posterFooterBrand || 'Master Quiz KH')}</a> | ${escapeHTML(posterFooterHandle)}`;
+
+          if (fullCompanion.length <= 1000) {
+            caption = fullCompanion;
+          } else {
+            // If the combined text exceeds Telegram's 1024-char caption limit, 
+            // set a concise caption and send companion full text alongside
+            caption = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ</b>\n` +
+                      `❓ <b>សំណួរ៖</b> ${escapeHTML((sendingQuiz.question || '').substring(0, 260))}...\n\n` +
+                      (correctAnswerFullText ? `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFullText)}</b></tg-spoiler>\n\n` : '') +
+                      `<i>(សូមពិនិត្យសំណួរ ចម្លើយពេញលេញ និងការពន្យល់ក្នុងសារអត្ថបទខាងក្រោម)</i>\n\n` +
+                      `✈️ <a href="${footerLink}">${escapeHTML(posterFooterBrand || 'Master Quiz KH')}</a> | ${escapeHTML(posterFooterHandle)}`;
+            companionFullMessage = fullCompanion;
+          }
+
+        } else {
+          // =========================================================================
+          // IMAGE CONTAINS BOTH QUESTION AND ANSWER:
+          // =========================================================================
+          let bothCaption = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ</b> • ${escapeHTML(editForm?.khmerName || 'វិញ្ញាសា')}\n`;
+          bothCaption += `❓ <b>សំណួរ៖</b> ${escapeHTML((sendingQuiz.question || '').substring(0, 280))}\n\n`;
+          bothCaption += `<i>(សូមពិនិត្យចម្លើយត្រឹមត្រូវ និងការពន្យល់លម្អិតក្នុងរូបភាព Poster ខាងលើ)</i>\n`;
+          if (correctAnswerFullText) {
+            bothCaption += `\n👉 <b>ចម្លើយ៖</b> ${escapeHTML(correctAnswerFullText.substring(0, 150))}\n`;
+          }
+          if (posterShowExplanation && sendingQuiz.explanation) {
+            const exp = sendingQuiz.explanation.trim();
+            bothCaption += `\n💡 <b>${escapeHTML(/^(ពន្យល់|យោង)/.test(exp) ? exp : `ពន្យល់៖ ${exp}`)}</b>\n`;
+          }
+          bothCaption += `\n✈️ <a href="${footerLink}">${escapeHTML(posterFooterBrand || 'Master Quiz KH')}</a> | ${escapeHTML(posterFooterHandle)}`;
+          caption = bothCaption.length <= 1000 ? bothCaption : bothCaption.substring(0, 980) + `...\n\n<a href="${footerLink}">${escapeHTML(posterFooterBrand)}</a>`;
         }
 
-        caption += `\n\n<a href="https://t.me/qiuzs_bot">Master Quiz KH</a> | វិញ្ញាសា | ${categoryFooter}`;
-        if (formattedExplanation) {
-          caption += `\n\n<b>${escapeHTML(formattedExplanation)}</b>`;
-        }
         formData.append("caption", caption);
         formData.append("parse_mode", "HTML");
 
@@ -935,6 +1203,19 @@ export default function AdminPage() {
           body: formData
         });
         if (!res.ok) throw new Error((await res.json()).description);
+
+        if (companionFullMessage) {
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: telegramChatId.trim(),
+              text: companionFullMessage,
+              parse_mode: 'HTML',
+              disable_web_page_preview: true
+            })
+          });
+        }
       }
 
       setTelegramProgress("ផ្ញើទៅ Telegram បានជោគជ័យ! 🎉");
@@ -1859,7 +2140,7 @@ export default function AdminPage() {
               initial={{ scale: 0.95, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
-              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md border border-slate-100 relative space-y-5"
+              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto border border-slate-100 relative space-y-4"
             >
               {/* Header */}
               <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
@@ -1871,8 +2152,8 @@ export default function AdminPage() {
                   <p className="text-[10px] text-slate-400 font-medium">បង្ហោះសំណួរទៅឆានែល ឬគ្រុប Telegram ភ្លាមៗ</p>
                 </div>
                 <button 
-                  onClick={() => setSendingQuiz(null)}
-                  className="ml-auto p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                  onClick={handleCloseTelegramModal}
+                  className="ml-auto p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1923,7 +2204,7 @@ export default function AdminPage() {
                     type="button"
                     onClick={() => setTelegramFormat('POLL')}
                     disabled={sendingQuizType !== 'mcq'}
-                    className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                       telegramFormat === 'POLL' 
                         ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' 
                         : sendingQuizType !== 'mcq'
@@ -1938,7 +2219,7 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => setTelegramFormat('TEXT')}
-                    className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                       telegramFormat === 'TEXT' 
                         ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' 
                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
@@ -1951,14 +2232,14 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => setTelegramFormat('IMAGE')}
-                    className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                       telegramFormat === 'IMAGE' 
-                        ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' 
+                        ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm ring-1 ring-blue-500/30' 
                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                     }`}
                   >
                     <span className="text-sm">🖼️</span>
-                    <span>ទម្រង់ Image</span>
+                    <span>ទម្រង់ Image Poster</span>
                   </button>
                 </div>
                 {sendingQuizType !== 'mcq' && (
@@ -1967,6 +2248,442 @@ export default function AdminPage() {
                   </p>
                 )}
               </div>
+
+              {/* Text Submission Customization (When format is TEXT) */}
+              {telegramFormat === 'TEXT' && (
+                <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3 text-left">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                    <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-black text-slate-800 font-khmer">ការកំណត់សារអត្ថបទ (Text Quiz Options)</h5>
+                      <p className="text-[10px] text-slate-400 font-medium">កំណត់ការផ្តល់ចម្លើយត្រឹមត្រូវ និងការពន្យល់ក្នុងសារ Telegram</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Include Correct Answer Toggle */}
+                    <label className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 text-slate-800 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={textIncludeAnswer}
+                        onChange={(e) => {
+                          setTextIncludeAnswer(e.target.checked);
+                          if (typeof window !== 'undefined') localStorage.setItem('vignasa_text_show_answer', String(e.target.checked));
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span>👉</span>
+                          <span>ផ្តល់ចម្លើយត្រឹមត្រូវ (Provide Correct Answer)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-normal mt-0.5 font-khmer">
+                          ផ្ញើចម្លើយត្រឹមត្រូវពេញលេញ (អក្សរ និងខ្លឹមសារចម្លើយ) រួមជាមួយសំណួរ
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Telegram Spoiler Toggle */}
+                    {textIncludeAnswer && (
+                      <label className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 text-slate-800 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors ml-4">
+                        <input
+                          type="checkbox"
+                          checked={textUseSpoiler}
+                          onChange={(e) => {
+                            setTextUseSpoiler(e.target.checked);
+                            if (typeof window !== 'undefined') localStorage.setItem('vignasa_text_use_spoiler', String(e.target.checked));
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span>🫣</span>
+                            <span>លាក់ចម្លើយដោយប្រើ Telegram Spoiler (&lt;tg-spoiler&gt;)</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-normal mt-0.5 font-khmer">
+                            តម្រូវឱ្យចុចលើចម្លើយដើម្បីមើល (Tap to reveal answer)
+                          </p>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* Include Explanation Toggle */}
+                    <label className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 text-slate-800 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={textIncludeExplanation}
+                        onChange={(e) => {
+                          setTextIncludeExplanation(e.target.checked);
+                          if (typeof window !== 'undefined') localStorage.setItem('vignasa_text_show_exp', String(e.target.checked));
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span>💡</span>
+                          <span>បង្ហាញការពន្យល់ និងឯកសារយោង (Provide Explanation)</span>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Poster Layout & Footer Customization (Only when format is IMAGE) */}
+              {telegramFormat === 'IMAGE' && (
+                <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-4 text-left">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-amber-50 rounded-lg text-amber-600">
+                        <Palette className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-800 font-khmer">រចនាប័ទ្ម Poster & Footer (Modern Poster)</h5>
+                        <p className="text-[10px] text-slate-400 font-medium">កែសម្រួលផ្ទៃ Poster និងព័ត៌មានខាងក្រោមមុននឹងបង្ហោះ</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGeneratePosterPreview}
+                      disabled={isPreviewingPoster}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-bold shadow-2xs transition-all cursor-pointer font-khmer"
+                    >
+                      {isPreviewingPoster ? (
+                        <span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5 text-blue-600" />
+                      )}
+                      <span>{posterPreviewUrl ? 'បង្កើតគំរូឡើងវិញ' : 'មើលគំរូរូបភាព'}</span>
+                    </button>
+                  </div>
+
+                  {/* 1. Layout Selection */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block font-khmer">
+                      ជ្រើសរើសស្ទីល Poster (Layout Style)
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPosterLayout('MODERN_DARK');
+                          savePosterConfig('MODERN_DARK', posterFooterBrand, posterFooterTagline, posterFooterHandle, posterShowAnswer, posterShowExplanation);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          posterLayout === 'MODERN_DARK'
+                            ? 'bg-[#092C44] text-white border-amber-400 shadow-md ring-2 ring-amber-400/20'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs">🌟</span>
+                          {posterLayout === 'MODERN_DARK' && <span className="text-[9px] bg-amber-400 text-slate-900 font-black px-1.5 py-0.2 rounded">សកម្ម</span>}
+                        </div>
+                        <div className="text-[11px] font-black font-khmer leading-tight">Modern Dark</div>
+                        <div className="text-[9px] opacity-70 font-khmer mt-0.5">ផ្ទៃងងឹត + ពណ៌មាស</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPosterLayout('EDITORIAL_LIGHT');
+                          savePosterConfig('EDITORIAL_LIGHT', posterFooterBrand, posterFooterTagline, posterFooterHandle, posterShowAnswer, posterShowExplanation);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          posterLayout === 'EDITORIAL_LIGHT'
+                            ? 'bg-white text-blue-900 border-blue-600 shadow-md ring-2 ring-blue-600/20'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs">📄</span>
+                          {posterLayout === 'EDITORIAL_LIGHT' && <span className="text-[9px] bg-blue-600 text-white font-black px-1.5 py-0.2 rounded">សកម្ម</span>}
+                        </div>
+                        <div className="text-[11px] font-black font-khmer leading-tight">Editorial Light</div>
+                        <div className="text-[9px] opacity-70 font-khmer mt-0.5">ផ្ទៃសស្អាត + បែបកាសែត</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPosterLayout('ROYAL_GOLD');
+                          savePosterConfig('ROYAL_GOLD', posterFooterBrand, posterFooterTagline, posterFooterHandle, posterShowAnswer, posterShowExplanation);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          posterLayout === 'ROYAL_GOLD'
+                            ? 'bg-[#093754] text-amber-200 border-amber-300 shadow-md ring-2 ring-amber-300/20'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs">👑</span>
+                          {posterLayout === 'ROYAL_GOLD' && <span className="text-[9px] bg-amber-300 text-slate-900 font-black px-1.5 py-0.2 rounded">សកម្ម</span>}
+                        </div>
+                        <div className="text-[11px] font-black font-khmer leading-tight">Royal Gold</div>
+                        <div className="text-[9px] opacity-70 font-khmer mt-0.5">ខៀវរាជវាំង + ក្បាច់មាស</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Program Logo Option */}
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-slate-800 text-xs font-bold font-khmer cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={posterIncludeProgramLogo}
+                          onChange={(e) => {
+                            setPosterIncludeProgramLogo(e.target.checked);
+                            savePosterConfig(
+                              posterLayout, 
+                              posterFooterBrand, 
+                              posterFooterTagline, 
+                              posterFooterHandle, 
+                              posterShowAnswer, 
+                              posterShowExplanation,
+                              e.target.checked,
+                              posterProgramLogo
+                            );
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                        />
+                        <span>បញ្ចូលឡូហ្គោកម្មវិធីលើ Poster (Program Logo)</span>
+                      </label>
+                      <div className="w-6 h-6 rounded-full border border-amber-300 overflow-hidden relative bg-white shadow-2xs flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          src={posterProgramLogo || "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg"} 
+                          alt="Program Logo Preview" 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                    </div>
+                    {posterIncludeProgramLogo && (
+                      <div className="pt-1">
+                        <span className="text-[9.5px] font-bold text-slate-400 block font-khmer mb-1">តំណភ្ជាប់ឡូហ្គោកម្មវិធី (Program Logo URL)</span>
+                        <input
+                          type="text"
+                          value={posterProgramLogo}
+                          onChange={(e) => {
+                            setPosterProgramLogo(e.target.value);
+                            savePosterConfig(
+                              posterLayout, 
+                              posterFooterBrand, 
+                              posterFooterTagline, 
+                              posterFooterHandle, 
+                              posterShowAnswer, 
+                              posterShowExplanation,
+                              posterIncludeProgramLogo,
+                              e.target.value
+                            );
+                          }}
+                          placeholder="https://..."
+                          className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 outline-none font-medium text-slate-700"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Image Content Mode (Question Only vs Both Question & Answer) */}
+                  <div className="space-y-2 pt-1">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block font-khmer">
+                      ខ្លឹមសារក្នុងរូបភាព (Image Content Mode)
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPosterShowAnswer(true);
+                          savePosterConfig(
+                            posterLayout, 
+                            posterFooterBrand, 
+                            posterFooterTagline, 
+                            posterFooterHandle, 
+                            true, 
+                            posterShowExplanation,
+                            posterIncludeProgramLogo,
+                            posterProgramLogo
+                          );
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          posterShowAnswer
+                            ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500/20'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-black text-xs font-khmer mb-1">
+                          <span>🌟</span>
+                          <span>មានទាំងសំណួរ និងចម្លើយ</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-khmer leading-snug">
+                          រូបភាព Poster បង្ហាញសំណួរ ចម្លើយត្រឹមត្រូវ (Highlight Answer) និងការពន្យល់។
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPosterShowAnswer(false);
+                          savePosterConfig(
+                            posterLayout, 
+                            posterFooterBrand, 
+                            posterFooterTagline, 
+                            posterFooterHandle, 
+                            false, 
+                            posterShowExplanation,
+                            posterIncludeProgramLogo,
+                            posterProgramLogo
+                          );
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          !posterShowAnswer
+                            ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500/20'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-black text-xs font-khmer mb-1">
+                          <span>❓</span>
+                          <span>មានតែសំណួរប៉ុណ្ណោះ (Question Only)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-khmer leading-snug">
+                          រូបភាពមានតែសំណួរ • ចម្លើយ និងការពន្យល់នឹងត្រូវផ្ញើជាអត្ថបទ (Text alongside image)។
+                        </p>
+                      </button>
+                    </div>
+
+                    {!posterShowAnswer ? (
+                      <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[10.5px] text-amber-800 font-khmer flex items-start gap-2">
+                        <span className="text-sm mt-0.5">💡</span>
+                        <span className="leading-relaxed">
+                          <b>ការរៀបចំស្វ័យប្រវត្តិ៖</b> ផ្ទាំងរូបភាពនឹងមានតែសំណួរ (មិនបង្ហាញចម្លើយ)។ ប្រព័ន្ធនឹងរៀបចំសំណួរ ជម្រើស និងចម្លើយត្រឹមត្រូវ (Telegram Spoiler) ព្រមទាំងការពន្យល់លម្អិត ជាអត្ថបទផ្ញើភ្ជាប់ជាមួយរូបភាពភ្លាមៗ!
+                        </span>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200 text-slate-700 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={posterShowExplanation}
+                          onChange={(e) => {
+                            setPosterShowExplanation(e.target.checked);
+                            savePosterConfig(
+                              posterLayout, 
+                              posterFooterBrand, 
+                              posterFooterTagline, 
+                              posterFooterHandle, 
+                              posterShowAnswer, 
+                              e.target.checked,
+                              posterIncludeProgramLogo,
+                              posterProgramLogo
+                            );
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                        />
+                        <span>បង្ហាញប្រអប់ការពន្យល់/ឯកសារយោងលើផ្ទាំងរូបភាព Poster</span>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* 4. Footer Customization */}
+                  <div className="space-y-2 pt-1 border-t border-slate-200/60">
+                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block font-khmer">
+                      កែសម្រួល Footer ខាងក្រោម Poster
+                    </label>
+                    
+                    <div className="space-y-1.5">
+                      <span className="text-[9.5px] font-bold text-slate-500 font-khmer">ឈ្មោះម៉ាក / ស្ថាប័ន (Footer Brand Title)</span>
+                      <input
+                        type="text"
+                        value={posterFooterBrand}
+                        onChange={(e) => {
+                          setPosterFooterBrand(e.target.value);
+                          savePosterConfig(posterLayout, e.target.value, posterFooterTagline, posterFooterHandle, posterShowAnswer, posterShowExplanation);
+                        }}
+                        placeholder="ឧ. Master Quiz KH • វិញ្ញាសាផ្លូវការ"
+                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-blue-500 outline-none font-semibold text-slate-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <span className="text-[9.5px] font-bold text-slate-500 font-khmer">ពាក្យស្លោក / ការណែនាំ (Footer Subtitle / Tagline)</span>
+                      <input
+                        type="text"
+                        value={posterFooterTagline}
+                        onChange={(e) => {
+                          setPosterFooterTagline(e.target.value);
+                          savePosterConfig(posterLayout, posterFooterBrand, e.target.value, posterFooterHandle, posterShowAnswer, posterShowExplanation);
+                        }}
+                        placeholder="ឧ. កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ និងស្ថាប័នសាធារណៈ"
+                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-blue-500 outline-none font-semibold text-slate-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <span className="text-[9.5px] font-bold text-slate-500 font-khmer">Telegram Handle / Bot (Footer Tag Badge)</span>
+                      <input
+                        type="text"
+                        value={posterFooterHandle}
+                        onChange={(e) => {
+                          setPosterFooterHandle(e.target.value);
+                          savePosterConfig(posterLayout, posterFooterBrand, posterFooterTagline, e.target.value, posterShowAnswer, posterShowExplanation);
+                        }}
+                        placeholder="ឧ. @qiuzs_bot"
+                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-blue-500 outline-none font-semibold text-slate-800"
+                      />
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {['@qiuzs_bot', '@web_qcm_q_and_a', '@Naret26', '@familyoflaw', '@khmerfamilyoflaw'].map(handle => (
+                          <button
+                            key={handle}
+                            type="button"
+                            onClick={() => {
+                              setPosterFooterHandle(handle);
+                              savePosterConfig(posterLayout, posterFooterBrand, posterFooterTagline, handle, posterShowAnswer, posterShowExplanation);
+                            }}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded-md border transition-colors cursor-pointer ${
+                              posterFooterHandle === handle
+                                ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {handle}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. Live Poster Preview Window */}
+                  {posterPreviewUrl && (
+                    <div className="mt-3 p-3 bg-slate-900 rounded-2xl space-y-2 border border-slate-800">
+                      <div className="flex items-center justify-between text-white">
+                        <div className="flex items-center gap-1.5 text-xs font-bold font-khmer">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>រូបភាពគំរូ Poster ជាក់ស្តែង (Actual Poster Preview)</span>
+                        </div>
+                        <a
+                          href={posterPreviewUrl}
+                          download={`poster_${Date.now()}.png`}
+                          className="inline-flex items-center gap-1 text-[10px] text-amber-300 hover:text-amber-200 underline font-khmer"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>ទាញយក PNG</span>
+                        </a>
+                      </div>
+                      <div className="rounded-xl overflow-hidden border border-slate-700 max-h-60 overflow-y-auto bg-slate-950 flex justify-center p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          src={posterPreviewUrl} 
+                          alt="Poster Preview" 
+                          className="w-full max-w-sm rounded-lg object-contain shadow-lg"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Progress / Error Reporting */}
               {telegramProgress && (
@@ -1985,8 +2702,8 @@ export default function AdminPage() {
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setSendingQuiz(null)}
-                  className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl transition-all"
+                  onClick={handleCloseTelegramModal}
+                  className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl transition-all cursor-pointer font-khmer"
                 >
                   បោះបង់
                 </button>
@@ -1994,7 +2711,7 @@ export default function AdminPage() {
                   type="button"
                   onClick={handleSendTelegramQuiz}
                   disabled={isSendingTelegram || !telegramChatId}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/10 transition-all flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer font-khmer"
                 >
                   {isSendingTelegram ? 'កំពុងផ្ញើ...' : 'ផ្ញើទៅ Telegram'}
                 </button>

@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import defaultConfig from "../firebase-applet-config.json";
 
@@ -16,7 +16,18 @@ const firebaseConfig = {
 const databaseId = defaultConfig.firestoreDatabaseId;
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+
+// Use initializeFirestore with experimentalForceLongPolling to eliminate WebChannel streaming disconnect errors (code=unavailable)
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    }, databaseId);
+  } catch {
+    return databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+  }
+})();
+
 export const auth = getAuth(app);
 
 export enum OperationType {

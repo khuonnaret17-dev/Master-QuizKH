@@ -6,6 +6,7 @@ import { collection, onSnapshot, setDoc, doc, getDoc, serverTimestamp, deleteDoc
 import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { Ministry, UserRole, Progress, PdfDocument } from './types';
 import { firestoreService } from './firestore-service';
+import { ministries as defaultMinistries } from './data';
 
 export interface CustomUserSession {
   uid: string;
@@ -50,10 +51,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('vignasa_ministries_cache');
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
       } catch {}
     }
-    return [];
+    return defaultMinistries;
   });
   const [documents, setDocuments] = useState<PdfDocument[]>(() => {
     if (typeof window !== 'undefined') {
@@ -64,14 +68,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     }
     return [];
   });
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        if (localStorage.getItem('vignasa_ministries_cache')) return false;
-      } catch {}
-    }
-    return true;
-  });
+  const [loading, setLoading] = useState<boolean>(false);
   const [user, setUser] = useState<User | CustomUserSession | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userProgress, setUserProgress] = useState<Progress>({});
@@ -106,33 +103,38 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up real-time listener for ministries with sorting & caching
     const unsubscribeMinistries = onSnapshot(collection(db, 'ministries'), (snapshot) => {
-      const data = snapshot.docs
-        .map(doc => ({ ...doc.data(), id: doc.id } as Ministry))
-        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-      setMinistries(data);
+      if (!snapshot.empty) {
+        const data = snapshot.docs
+          .map(doc => ({ ...doc.data(), id: doc.id } as Ministry))
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        setMinistries(data);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('vignasa_ministries_cache', JSON.stringify(data));
+          } catch {}
+        }
+      }
       setLoading(false);
       setError(null);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('vignasa_ministries_cache', JSON.stringify(data));
-        } catch {}
-      }
     }, (error) => {
-      console.error("Ministries real-time error:", error);
+      console.warn("Ministries listener notice (using cached/default data):", error);
+      setMinistries(prev => prev.length > 0 ? prev : defaultMinistries);
       setLoading(false);
     });
 
     // Set up real-time listener for documents with caching
     const unsubscribeDocuments = onSnapshot(collection(db, 'documents'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PdfDocument));
-      setDocuments(data);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('vignasa_documents_cache', JSON.stringify(data));
-        } catch {}
+      if (!snapshot.empty) {
+        const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PdfDocument));
+        setDocuments(data);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('vignasa_documents_cache', JSON.stringify(data));
+          } catch {}
+        }
       }
     }, (error) => {
-      console.error("Documents real-time error:", error);
+      console.warn("Documents listener notice:", error);
     });
 
     return () => {

@@ -4,7 +4,7 @@
 
 import { motion } from "motion/react";
 import { useFirebase } from "@/lib/FirebaseProvider";
-import { Search, Info, AlertCircle, LogIn, CheckCircle2, User, Lock, X, History, Heart, Radio, LayoutDashboard } from "lucide-react";
+import { Search, Info, AlertCircle, LogIn, CheckCircle2, User, Lock, X, History, Heart } from "lucide-react";
 import { useState, useEffect, useMemo, useDeferredValue } from "react";
 import Link from "next/link";
 
@@ -207,34 +207,12 @@ export default function Home() {
               {userRole === 'ADMIN' && (
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link 
-                    href="/live" 
-                    className="flex items-center gap-2 px-3.5 py-2 md:px-4 md:py-2.5 bg-gradient-to-r from-red-600 to-rose-600 border border-red-400/50 rounded-2xl text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer cursor-pointer"
-                  >
-                    <Radio className="w-4 h-4 animate-pulse text-white" />
-                    <span>ផ្សាយផ្ទាល់ (Live)</span>
-                  </Link>
-                </motion.div>
-              )}
-              {userRole === 'ADMIN' && (
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link 
                     href="/admin" 
                     id="admin-link"
                     className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer"
                   >
                     <Info className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                     <span className="hidden sm:inline">គ្រប់គ្រង (Admin)</span>
-                  </Link>
-                </motion.div>
-              )}
-              {user && (
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link 
-                    href="/dashboard"
-                    className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 border border-teal-500/30 rounded-2xl text-white hover:shadow-[0_0_20px_rgba(13,148,136,0.4)] transition-all shadow-md font-black text-xs md:text-sm font-khmer"
-                  >
-                    <LayoutDashboard className="w-4 h-4 text-emerald-300" />
-                    <span>វឌ្ឍនភាពសិក្សា</span>
                   </Link>
                 </motion.div>
               )}

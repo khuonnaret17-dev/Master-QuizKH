@@ -38,6 +38,7 @@ import {
 import Link from "next/link";
 import { motion } from "motion/react";
 import SafeImage from "@/components/SafeImage";
+import { QuizPerformanceChart } from "@/components/QuizPerformanceChart";
 
 export default function Dashboard() {
   const { ministries, user, userProgress, authLoading, loading } = useFirebase();
@@ -386,6 +387,9 @@ export default function Dashboard() {
           </motion.div>
 
         </div>
+
+        {/* User Quiz Performance Trends Over Time (Recharts Line Chart) */}
+        <QuizPerformanceChart userProgress={userProgress} ministries={ministries} />
 
         {/* Visual Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
