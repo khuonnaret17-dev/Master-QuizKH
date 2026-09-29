@@ -12,7 +12,7 @@
         "canvas-confetti": "^1.9.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
-        "firebase": "^11.10.0",
+        "firebase": "^11.0.1",
         "firebase-admin": "^13.10.0",
         "html-to-image": "^1.11.13",
         "html2canvas": "^1.4.1",
@@ -37,7 +37,7 @@
         "@types/react-dom": "^19.0.0",
         "eslint": "^9.14.0",
         "eslint-config-next": "15.5.26",
-        "postcss": "^8.5.28",
+        "postcss": "^8.4.47",
         "tailwindcss": "^4.0.0",
         "typescript": "^5.6.3",
       },
@@ -1026,7 +1026,7 @@
 
     "ms": ["ms@2.1.3", "", {}, "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="],
 
-    "nanoid": ["nanoid@3.3.19", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug=="],
+    "nanoid": ["nanoid@3.3.12", "", { "bin": "bin/nanoid.cjs" }, "sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ=="],
 
     "napi-postinstall": ["napi-postinstall@0.3.4", "", { "bin": "lib/cli.js" }, "sha512-PHI5f1O0EP5xJ9gQmFGMS6IZcrVvTjpXjz7Na41gTE7eE2hK11lg04CECCYEEjdc17EV4DO+fkGEtt7TpTaTiQ=="],
 
@@ -1088,7 +1088,7 @@
 
     "possible-typed-array-names": ["possible-typed-array-names@1.1.0", "", {}, "sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg=="],
 
-    "postcss": ["postcss@8.5.28", "", { "dependencies": { "nanoid": "^3.3.18", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A=="],
+    "postcss": ["postcss@8.5.14", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-SoSL4+OSEtR99LHFZQiJLkT59C5B1amGO1NzTwj7TT1qCUgUO6hxOvzkOYxD+vMrXBM3XJIKzokoERdqQq/Zmg=="],
 
     "prelude-ls": ["prelude-ls@1.2.1", "", {}, "sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g=="],
 
@@ -1401,6 +1401,8 @@
     "gtoken/gaxios/node-fetch": ["node-fetch@2.7.0", "", { "dependencies": { "whatwg-url": "^5.0.0" }, "peerDependencies": { "encoding": "^0.1.0" }, "optionalPeers": ["encoding"] }, "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A=="],
 
     "gtoken/gaxios/uuid": ["uuid@9.0.1", "", { "bin": "dist/bin/uuid" }, "sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA=="],
+
+    "next/postcss/nanoid": ["nanoid@3.3.19", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug=="],
 
     "teeny-request/https-proxy-agent/agent-base": ["agent-base@6.0.2", "", { "dependencies": { "debug": "4" } }, "sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ=="],
 

@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const nextConfig: NextConfig = {
-  images: {
+export default function (phase: string): NextConfig {
+  const isDev = phase === PHASE_DEVELOPMENT_SERVER;
+
+  return {
+    distDir: isDev ? ".next-dev" : ".next",
+    images: {
       dangerouslyAllowSVG: true,
       contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
       remotePatterns: [
@@ -43,6 +48,5 @@ const nextConfig: NextConfig = {
         },
       ],
     },
-};
-
-export default nextConfig;
+  };
+}
