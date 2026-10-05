@@ -470,20 +470,34 @@ function MinistryDetailContent() {
   return (
     <div className="min-h-screen bg-transparent">
       {/* Hero Header */}
-      <div className="relative min-h-[16rem] md:min-h-[20rem] h-auto bg-slate-900 overflow-hidden py-6 md:py-8">
+      <div className="relative min-h-[16rem] md:min-h-[20rem] h-auto bg-slate-900 overflow-hidden pt-8 sm:pt-10 md:pt-12 pb-8 sm:pb-10 md:pb-12">
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <SafeImage src={ministry.logo} alt="" fill className="object-cover blur-xl" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent pointer-events-none" />
         
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 flex flex-col justify-between h-full">
-          <div className="mb-4 sm:mb-6">
+          <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
             <Link 
               href="/" 
-              className="inline-flex items-center text-white/70 hover:text-white transition-colors text-xs sm:text-sm font-medium"
+              className="inline-flex items-center text-white/80 hover:text-white transition-colors text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-white/10 backdrop-blur-xs"
             >
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               ត្រឡប់ទៅទំព័រដើម
+            </Link>
+
+            <Link 
+              href="/favorites"
+              className="inline-flex items-center gap-1.5 text-white/90 hover:text-white transition-colors text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-white/10 backdrop-blur-xs"
+              title="មើលបញ្ជីចូលចិត្ត"
+            >
+              <Heart className={`w-3.5 h-3.5 ${favorites.length > 0 ? 'text-rose-400 fill-rose-400' : ''}`} />
+              <span className="hidden xs:inline font-khmer">បញ្ជីចូលចិត្ត</span>
+              {favorites.length > 0 && (
+                <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-bold">
+                  {favorites.length}
+                </span>
+              )}
             </Link>
           </div>
           
@@ -813,21 +827,22 @@ function MinistryDetailContent() {
                             </button>
                             
                             <div className="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0 justify-end shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-50">
-                              {node.isLeaf && node.fullPath && (
+                              {node.fullPath && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     toggleFavorite(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`);
                                   }}
-                                  className={`p-1.5 sm:p-2 rounded-xl transition-all border shrink-0 cursor-pointer ${
+                                  className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all border shrink-0 cursor-pointer flex items-center gap-1.5 text-xs font-bold font-khmer ${
                                     favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`)
-                                      ? 'bg-rose-50 border-rose-200 text-rose-500'
-                                      : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-rose-500 hover:bg-white'
+                                      ? 'bg-rose-50 border-rose-200 text-rose-600 shadow-2xs'
+                                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-rose-500 hover:bg-rose-50/50'
                                   }`}
                                   title={favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`) ? 'ដកមេរៀនពីបញ្ជីចូលចិត្ត' : 'រក្សាទុកមេរៀនក្នុងបញ្ជីចូលចិត្ត'}
                                 >
                                   <Heart className={`w-3.5 h-3.5 ${favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`) ? 'fill-current text-rose-500' : ''}`} />
+                                  <span className="hidden sm:inline">ចូលចិត្ត</span>
                                 </button>
                               )}
 

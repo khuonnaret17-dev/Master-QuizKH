@@ -277,7 +277,7 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 lg:p-12">
+    <main className="min-h-screen bg-[#F8FAFC] pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-8 lg:px-12">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Navigation & Header */}

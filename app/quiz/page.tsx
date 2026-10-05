@@ -70,6 +70,7 @@ export default function QuizPage() {
         .sort(() => 0.5 - Math.random());
       
       return {
+        id: `quick_q_${m.id}`,
         ministryId: m.id,
         question: isKhmerQuestion 
           ? `តើ " ${m.khmerName} " មានឈ្មោះជាភាសាអង់គ្លេសថាអ្វី?`
@@ -241,16 +242,31 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-12 overflow-x-hidden">
+    <div className="min-h-screen bg-transparent pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-12 overflow-x-hidden">
       <div className="max-w-2xl mx-auto">
-        <header className="mb-6 sm:mb-12 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors text-xs sm:text-sm">
+        <header className="mb-6 sm:mb-10 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors text-xs sm:text-sm font-semibold bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
             <ArrowLeft className="w-4 h-4 mr-1.5" />
-            Home
+            ទំព័រដើម (Home)
           </Link>
-          <div className="bg-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-1.5 sm:gap-2">
-            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
-            <span className="font-bold text-slate-700 text-xs sm:text-sm">Score: {score}</span>
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/favorites"
+              className="bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-rose-600 transition-colors"
+              title="មើលបញ្ជីចូលចិត្ត"
+            >
+              <Heart className={`w-3.5 h-3.5 ${favorites.length > 0 ? 'text-rose-500 fill-rose-500' : 'text-slate-400'}`} />
+              <span className="hidden sm:inline font-khmer">ចូលចិត្ត</span>
+              {favorites.length > 0 && (
+                <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-bold">
+                  {favorites.length}
+                </span>
+              )}
+            </Link>
+            <div className="bg-white px-3 sm:px-4 py-1.5 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-1.5 sm:gap-2">
+              <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
+              <span className="font-bold text-slate-700 text-xs sm:text-sm">Score: {score}</span>
+            </div>
           </div>
         </header>
 
@@ -309,10 +325,16 @@ export default function QuizPage() {
                     {quizzes[currentStep].question}
                   </h2>
                   <button 
-                    onClick={() => toggleFavorite(quizzes[currentStep].ministryId)}
-                    className={`mt-3 sm:mt-4 p-1.5 sm:p-2 rounded-full transition-colors shrink-0 ${favorites.includes(quizzes[currentStep].ministryId) ? 'text-red-500 bg-red-50' : 'text-slate-300 hover:text-red-400'}`}
+                    onClick={() => toggleFavorite(quizzes[currentStep].id || `quick_q_${quizzes[currentStep].ministryId}`)}
+                    className={`mt-3 sm:mt-4 px-2.5 py-1.5 rounded-full transition-all shrink-0 flex items-center gap-1.5 text-xs font-bold font-khmer border cursor-pointer ${
+                      favorites.includes(quizzes[currentStep].id || `quick_q_${quizzes[currentStep].ministryId}`) 
+                        ? 'text-rose-600 bg-rose-50 border-rose-200 shadow-2xs' 
+                        : 'text-slate-500 bg-white border-slate-200 hover:text-rose-500 hover:border-rose-200'
+                    }`}
+                    title="រក្សាទុកក្នុងបញ្ជីសំណួរចូលចិត្ត"
                   >
-                    <Heart className={`w-5 h-5 sm:w-6 sm:h-6 ${favorites.includes(quizzes[currentStep].ministryId) ? 'fill-red-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${favorites.includes(quizzes[currentStep].id || `quick_q_${quizzes[currentStep].ministryId}`) ? 'fill-rose-500 text-rose-500' : 'text-slate-400'}`} />
+                    <span className="hidden sm:inline">ចូលចិត្ត</span>
                   </button>
                 </div>
               </div>

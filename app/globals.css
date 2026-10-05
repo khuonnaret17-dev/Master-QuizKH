@@ -26,6 +26,8 @@
   --background: #ffffff;
   --foreground: #171717;
   --font-khmer: 'Kantumruy Pro', 'Battambang', 'Siemreap', 'Khmer OS', 'Khmer OS Battambang', system-ui, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 *, *::before, *::after {

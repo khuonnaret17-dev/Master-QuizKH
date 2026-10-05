@@ -213,11 +213,11 @@ export default function FavoritesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-3 sm:p-6 md:p-10 overflow-x-hidden">
+    <main className="min-h-screen bg-slate-50 pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-10 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
         
         {/* Top Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80">
           <div className="flex items-center gap-3.5">
             <Link 
               href="/" 
@@ -547,20 +547,21 @@ export default function FavoritesPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => toggleFavorite(l.id)}
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
                             title="ដកចេញពីបញ្ជីចូលចិត្ត"
                           >
                             <Heart className="w-4 h-4 fill-rose-500" />
                           </button>
                           <Link
-                            href={`/ministry/${l.ministryId}?tab=DOCUMENTS`}
-                            className="p-2 bg-slate-50 hover:bg-[#094C72] hover:text-white rounded-xl text-slate-600 transition-colors"
-                            title="បើកមើលមេរៀន"
+                            href={`/ministry/${l.ministryId}?tab=MCQ&category=${encodeURIComponent(l.category)}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#094C72] hover:bg-[#073652] text-white rounded-xl text-xs font-bold font-khmer transition-all shadow-xs"
+                            title="បើកធ្វើតេស្តមេរៀននេះ"
                           >
-                            <ExternalLink className="w-4 h-4" />
+                            <Play className="w-3.5 h-3.5 fill-current text-amber-300" />
+                            <span>រៀនមេរៀន</span>
                           </Link>
                         </div>
                       </div>

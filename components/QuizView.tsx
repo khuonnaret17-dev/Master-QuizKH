@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart, Play, PlayCircle, RotateCcw, Pause, BookmarkCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart, Play, PlayCircle, RotateCcw, Pause, BookmarkCheck, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import SafeImage from '@/components/SafeImage';
@@ -439,38 +439,70 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
       )}
 
       {/* Quiz Header */}
-      <div className="flex items-center justify-between gap-2 sm:gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 pt-1 sm:pt-2 pb-2">
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Button 
             variant="ghost" 
             onClick={handleSafeBack} 
-            className="group gap-1 sm:gap-1.5 text-[10px] md:text-xs uppercase tracking-widest font-bold rounded-xl px-2 sm:px-3"
-            style={{ color: 'rgba(27, 54, 93, 0.7)', backgroundColor: 'rgba(27, 54, 93, 0.05)' }}
+            className="group gap-1 sm:gap-1.5 text-xs font-bold rounded-xl px-2.5 sm:px-3.5 py-2 font-khmer shadow-2xs hover:bg-slate-100"
+            style={{ color: '#094C72', backgroundColor: 'rgba(9, 76, 114, 0.08)' }}
           >
-            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> ត្រឡប់
+            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
+            <span>ត្រឡប់</span>
           </Button>
 
           <Button
             variant="ghost"
             onClick={handlePauseAndExit}
-            className="gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold font-khmer rounded-xl px-2 sm:px-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 shadow-2xs"
-            title="ផ្អាក និង រក្សាទុកវិញ្ញាសា"
+            className="gap-1.5 text-xs font-bold font-khmer rounded-xl px-2.5 sm:px-3 py-2 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/80 shadow-2xs"
+            title="ផ្អាក និង រក្សាទុកវិញ្ញាសា (Pause & Save)"
           >
-            <Pause className="w-3.5 h-3.5 fill-current" />
+            <Pause className="w-3.5 h-3.5 fill-current text-blue-600" />
             <span className="hidden xs:inline">ផ្អាក & រក្សាទុក</span>
             <span className="xs:hidden">ផ្អាក</span>
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-          <button 
-            onClick={() => toggleFavorite(currentQuiz.id)}
-            className={cn("p-1.5 sm:p-2 rounded-full transition-colors shrink-0", favorites.includes(currentQuiz.id) ? "text-red-500" : "text-slate-300 hover:text-red-500")}
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-end min-w-0">
+          {/* Favorite Lesson Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const lessonKey = `lesson_${ministry.id}_${encodeURIComponent(category)}`;
+              toggleFavorite(lessonKey);
+            }}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold font-khmer transition-all border shrink-0 cursor-pointer",
+              favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`)
+                ? "bg-rose-50 text-rose-600 border-rose-300 shadow-2xs"
+                : "bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 border-slate-200 shadow-2xs"
+            )}
+            title={favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`) ? "ដកមេរៀននេះពីបញ្ជីចូលចិត្ត" : "រក្សាទុកមេរៀននេះក្នុងបញ្ជីចូលចិត្ត"}
           >
-            <Heart className={cn("w-5 h-5 sm:w-6 sm:h-6", favorites.includes(currentQuiz.id) && "fill-current")} />
+            <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+            <span className="hidden sm:inline">ចូលចិត្តមេរៀន</span>
+            <Heart className={cn("w-3.5 h-3.5", favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`) ? "fill-rose-500 text-rose-500" : "text-slate-400")} />
           </button>
-          <div className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-white rounded-full border shadow-sm truncate max-w-[130px] sm:max-w-[220px] md:max-w-none" style={{ borderColor: 'rgba(27, 54, 93, 0.05)', fontFamily: 'var(--font-khmer)' }}>
-            <span className="text-[9px] md:text-[10px] uppercase tracking-widest font-bold text-[#D4AF37] truncate block">
+
+          {/* Favorite Question Button */}
+          <button 
+            type="button"
+            onClick={() => toggleFavorite(currentQuiz.id)}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold font-khmer transition-all border shrink-0 cursor-pointer",
+              favorites.includes(currentQuiz.id)
+                ? "bg-rose-50 text-rose-600 border-rose-300 shadow-2xs"
+                : "bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 border-slate-200 shadow-2xs"
+            )}
+            title={favorites.includes(currentQuiz.id) ? "ដកសំណួរនេះពីបញ្ជីចូលចិត្ត" : "រក្សាទុកសំណួរនេះក្នុងបញ្ជីចូលចិត្ត"}
+          >
+            <Heart className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", favorites.includes(currentQuiz.id) ? "fill-rose-500 text-rose-500" : "text-slate-400")} />
+            <span className="hidden sm:inline">សំណួរចូលចិត្ត</span>
+          </button>
+
+          {/* Category Pill */}
+          <div className="px-3 sm:px-4 py-1.5 bg-white rounded-full border border-slate-200 shadow-2xs truncate max-w-[130px] sm:max-w-[200px] md:max-w-none">
+            <span className="text-[10px] sm:text-xs font-bold text-[#D4AF37] truncate block font-khmer">
               {category}
             </span>
           </div>

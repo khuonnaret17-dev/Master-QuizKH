@@ -6,9 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function isValidUrl(url: string) {
+  if (!url || typeof url !== 'string') return false;
+  if (url.startsWith('/') || url.startsWith('data:image/') || url.startsWith('blob:')) return true;
   try {
-    new URL(url);
-    return true;
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }

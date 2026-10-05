@@ -170,12 +170,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-transparent p-2 sm:p-4 md:p-12 overflow-x-hidden">
+    <main className="min-h-screen bg-transparent pt-4 sm:pt-6 md:pt-10 pb-12 sm:pb-16 px-2.5 sm:px-6 md:px-8 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-6 md:mb-12 text-center relative pt-2 sm:pt-4 md:pt-0">
+        <header className="mb-6 md:mb-12 text-center relative pt-1 sm:pt-2">
           <div 
-            className="pt-4 md:pt-6 pb-8 md:pb-12 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.5rem] shadow-2xl" 
+            className="pt-6 sm:pt-8 md:pt-10 pb-8 sm:pb-10 md:pb-14 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.5rem] shadow-2xl" 
             style={{ 
               backgroundColor: '#094C72',
               backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 17L3 10l7-7 7 7-7 7z\' fill=\'%23D4AF37\' fill-opacity=\'0.04\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
@@ -208,7 +208,7 @@ export default function Home() {
             />
             
             {/* Top Navigation Row inside banner */}
-            <div className="w-full flex justify-end items-center flex-wrap gap-2 sm:gap-3 px-3 sm:px-6 md:px-8 mb-4 md:mb-6 z-30 relative">
+            <div className="w-full flex justify-end items-center flex-wrap gap-2.5 sm:gap-3.5 px-4 sm:px-8 md:px-10 mb-5 sm:mb-8 md:mb-10 z-30 relative">
               {userRole === 'ADMIN' && (
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link 
@@ -244,32 +244,38 @@ export default function Home() {
             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
 
+            {/* App Logo Section */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="relative w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 mb-4 md:mb-6 flex items-center justify-center bg-white rounded-full shadow-[0_0_50px_rgba(212,175,55,0.6)] ring-4 ring-[#D4AF37]/50 overflow-hidden hover:scale-105 hover:shadow-[0_0_60px_rgba(212,175,55,0.8)] transition-all duration-300"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative w-24 min-[380px]:w-28 min-[380px]:h-28 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 aspect-square shrink-0 mb-3.5 sm:mb-5 md:mb-6 flex items-center justify-center bg-white rounded-full shadow-[0_0_40px_rgba(212,175,55,0.55)] sm:shadow-[0_0_55px_rgba(212,175,55,0.65)] ring-4 sm:ring-[5px] ring-[#D4AF37]/60 overflow-hidden cursor-pointer select-none transition-shadow hover:shadow-[0_0_65px_rgba(212,175,55,0.85)]"
+              title="កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ"
             >
               <SafeImage 
                 src="https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg"
-                alt="Logo"
+                fallbackSrc="/app-logo.jpg"
+                alt="កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ Logo"
                 fill
                 priority
-                unoptimized
-                className="object-cover drop-shadow-xl"
+                sizes="(max-width: 640px) 112px, (max-width: 1024px) 144px, 160px"
+                className="object-cover drop-shadow-md pointer-events-none"
               />
             </motion.div>
             <motion.h1 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-2xl sm:text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFFDF6] via-[#FCECB8] to-[#E2BD55] mb-3 md:mb-4 drop-shadow-sm leading-tight text-center font-khmer px-2 py-1 w-full max-w-[615px] flex items-center justify-center break-words-khmer"
+              className="text-xl min-[380px]:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFFDF6] via-[#FCECB8] to-[#E2BD55] mb-2 sm:mb-3 drop-shadow-sm leading-tight text-center font-khmer px-3 w-full max-w-[620px] flex items-center justify-center break-words-khmer"
             >
               កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ
             </motion.h1>
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: 140 }}
-              className="h-0.5 bg-[#D4AF37]/50 rounded-full mx-auto mb-4"
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent rounded-full mx-auto mb-3.5 sm:mb-4"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}

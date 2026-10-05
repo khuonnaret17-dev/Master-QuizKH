@@ -1725,9 +1725,9 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-12 font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-transparent pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-12 font-sans overflow-x-hidden">
       <div className="max-w-5xl mx-auto">
-        <header className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <header className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-2 sm:mb-4 transition-colors text-xs sm:text-sm">
               <ArrowLeft className="w-4 h-4 mr-1.5" />
