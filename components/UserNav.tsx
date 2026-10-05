@@ -1,7 +1,7 @@
 'use client';
 
 import { useFirebase } from "@/lib/FirebaseProvider";
-import { LogIn, LogOut, User as UserIcon, ChevronDown, Crown, X, Lock, AlertCircle, CheckCircle2, Radio, LayoutDashboard } from "lucide-react";
+import { LogIn, LogOut, User as UserIcon, ChevronDown, Crown, X, Lock, AlertCircle, CheckCircle2, Radio, LayoutDashboard, Heart } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -119,7 +119,7 @@ export function UserNav() {
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 z-10 flex flex-col space-y-5"
+                className="relative bg-white w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100 z-10 flex flex-col space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto"
               >
                 {/* Close Button */}
                 <button
@@ -344,7 +344,7 @@ export function UserNav() {
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-40"
+              className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-40"
             >
               <div className="p-4 border-b border-slate-50">
                 <p className="text-sm font-bold text-slate-900">{user.displayName}</p>
@@ -373,6 +373,14 @@ export function UserNav() {
                 >
                   <LayoutDashboard className="w-4 h-4 text-teal-500" />
                   <span>វឌ្ឍនភាពសិក្សា (Dashboard)</span>
+                </Link>
+                <Link
+                  href="/favorites"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-700 font-medium hover:bg-rose-50 rounded-xl transition-colors cursor-pointer font-khmer"
+                >
+                  <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+                  <span>សំណួរ & មេរៀនចូលចិត្ត</span>
                 </Link>
                 <button
                   onClick={logout}

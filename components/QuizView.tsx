@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart, Play, PlayCircle, RotateCcw, Pause, BookmarkCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import SafeImage from '@/components/SafeImage';
-import { Ministry, Quiz, QuizType } from '@/lib/types';
+import { Ministry, Quiz, QuizType, QuizSession } from '@/lib/types';
+import { getSavedSession, saveSession, clearSession } from '@/lib/quiz-session';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { CategorySection } from '@/components/WebDocumentView';
@@ -17,9 +18,10 @@ interface QuizViewProps {
   quizType: QuizType;
   onBack: () => void;
   onComplete: (score: number) => void;
+  initialResume?: boolean;
 }
 
-export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType, onBack, onComplete }) => {
+export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType, onBack, onComplete, initialResume = false }) => {
   const { toggleFavorite, favorites } = useFirebase();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,13 +32,41 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
   const [answers, setAnswers] = useState<{ [key: string]: string }>({});
   const [isFinished, setIsFinished] = useState(false);
   const [showIntermediateResult, setShowIntermediateResult] = useState(false);
+  const [savedSessionPrompt, setSavedSessionPrompt] = useState<QuizSession | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [shuffledOptions, setShuffledOptions] = useState<{ originalKey: string; value: string }[]>([]);
 
   React.useEffect(() => {
     const filtered = (ministry.quizzes || []).filter(q => q.category === category && (q.type || 'MULTIPLE_CHOICE') === quizType);
+    const saved = getSavedSession(ministry.id, quizType, category);
+
+    // If there is an unfinished saved session
+    if (saved && !saved.isFinished && (saved.currentIdx > 0 || Object.keys(saved.answers || {}).length > 0) && Array.isArray(saved.quizzes) && saved.quizzes.length > 0) {
+      if (initialResume) {
+        // Automatically resume without prompt
+        setQuizzes(saved.quizzes);
+        setCurrentIdx(Math.min(saved.currentIdx || 0, saved.quizzes.length - 1));
+        setSelectedOption(saved.selectedOption || null);
+        setShowExplanation(saved.showExplanation || false);
+        setRevealed(saved.revealed || false);
+        setAnswers(saved.answers || {});
+        setIsFinished(false);
+        setShowIntermediateResult(false);
+        setSavedSessionPrompt(null);
+        setIsLoading(false);
+        return;
+      } else {
+        // Show prompt asking to resume or restart
+        setSavedSessionPrompt(saved);
+        const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+        setQuizzes(shuffled);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const shuffled = [...filtered].sort(() => Math.random() - 0.5);
-    
     const timer = setTimeout(() => {
       setQuizzes(shuffled);
       setCurrentIdx(0);
@@ -46,11 +76,71 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
       setAnswers({});
       setIsFinished(false);
       setShowIntermediateResult(false);
+      setSavedSessionPrompt(null);
       setIsLoading(false);
     }, 0);
     
     return () => clearTimeout(timer);
-  }, [category, quizType, ministry]);
+  }, [category, quizType, ministry, initialResume]);
+
+  const resumeTest = () => {
+    if (!savedSessionPrompt) return;
+    setQuizzes(savedSessionPrompt.quizzes);
+    setCurrentIdx(Math.min(savedSessionPrompt.currentIdx || 0, savedSessionPrompt.quizzes.length - 1));
+    setSelectedOption(savedSessionPrompt.selectedOption || null);
+    setShowExplanation(savedSessionPrompt.showExplanation || false);
+    setRevealed(savedSessionPrompt.revealed || false);
+    setAnswers(savedSessionPrompt.answers || {});
+    setIsFinished(false);
+    setShowIntermediateResult(false);
+    setSavedSessionPrompt(null);
+  };
+
+  const restartTest = () => {
+    clearSession(ministry.id, quizType, category);
+    setSavedSessionPrompt(null);
+    const filtered = (ministry.quizzes || []).filter(q => q.category === category && (q.type || 'MULTIPLE_CHOICE') === quizType);
+    const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+    setQuizzes(shuffled);
+    setCurrentIdx(0);
+    setSelectedOption(null);
+    setShowExplanation(false);
+    setRevealed(false);
+    setAnswers({});
+    setIsFinished(false);
+    setShowIntermediateResult(false);
+  };
+
+  // Helper to persist current progress
+  const persistProgress = (
+    targetQuizzes: Quiz[], 
+    targetIdx: number, 
+    targetAnswers: { [key: string]: string }, 
+    targetSelected: string | null, 
+    targetShowExp: boolean, 
+    targetRevealed: boolean,
+    finished: boolean = false
+  ) => {
+    if (finished) {
+      clearSession(ministry.id, quizType, category);
+      return;
+    }
+    if (!targetQuizzes || targetQuizzes.length === 0) return;
+    saveSession({
+      ministryId: ministry.id,
+      ministryName: ministry.khmerName || ministry.name,
+      category,
+      quizType,
+      quizzes: targetQuizzes,
+      currentIdx: targetIdx,
+      answers: targetAnswers,
+      selectedOption: targetSelected,
+      showExplanation: targetShowExp,
+      revealed: targetRevealed,
+      updatedAt: Date.now(),
+      isFinished: false
+    });
+  };
 
   const currentQuiz = quizzes[currentIdx];
 
@@ -120,21 +210,41 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
 
   const handleSelect = (option: string) => {
     if (showExplanation) return;
+    const newAnswers = { ...answers, [currentQuiz.id]: option };
     setSelectedOption(option);
-    setAnswers(prev => ({ ...prev, [currentQuiz.id]: option }));
+    setAnswers(newAnswers);
     setShowExplanation(true);
+    persistProgress(quizzes, currentIdx, newAnswers, option, true, revealed, false);
   };
 
   const handleReveal = () => {
     setRevealed(true);
     setShowExplanation(true);
+    persistProgress(quizzes, currentIdx, answers, selectedOption, true, true, false);
   };
 
   const proceedToNext = () => {
-    setCurrentIdx(prev => prev + 1);
+    const nextIdx = currentIdx + 1;
+    setCurrentIdx(nextIdx);
     setSelectedOption(null);
     setShowExplanation(false);
     setRevealed(false);
+    persistProgress(quizzes, nextIdx, answers, null, false, false, false);
+  };
+
+  const handleSafeBack = () => {
+    if (!isFinished && quizzes.length > 0) {
+      persistProgress(quizzes, currentIdx, answers, selectedOption, showExplanation, revealed, false);
+    }
+    onBack();
+  };
+
+  const handlePauseAndExit = () => {
+    persistProgress(quizzes, currentIdx, answers, selectedOption, showExplanation, revealed, false);
+    setToastMessage("បានរក្សាទុកវឌ្ឍនភាពរបស់អ្នកជោគជ័យ! អ្នកអាចត្រឡប់មកបន្តបានគ្រប់ពេល។");
+    setTimeout(() => {
+      onBack();
+    }, 400);
   };
 
   const handleNext = () => {
@@ -152,6 +262,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
       }
     } else {
       setIsFinished(true);
+      clearSession(ministry.id, quizType, category);
       const score = quizzes.reduce((acc, q) => {
         if (quizType === 'MULTIPLE_CHOICE') {
           return acc + (answers[q.id] === q.correctAnswer ? 1 : 0);
@@ -243,12 +354,22 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                 បន្តទៅមុខទៀត
               </Button>
             ) : (
-              <Button 
-                className="w-full h-14 md:h-16 rounded-xl md:rounded-2xl prestige-gradient hover:shadow-lg hover:shadow-[#1B365D]/20 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all" 
-                onClick={onBack}
-              >
-                ត្រឡប់ទៅការជ្រើសរើសវិញ្ញាសា
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button 
+                  variant="outline"
+                  className="flex-1 h-12 sm:h-14 rounded-xl md:rounded-2xl border-2 border-[#1B365D]/20 text-[#1B365D] hover:bg-[#1B365D]/5 text-xs font-bold uppercase tracking-wider transition-all gap-2"
+                  onClick={restartTest}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>ធ្វើតេស្តឡើងវិញ</span>
+                </Button>
+                <Button 
+                  className="flex-1 h-12 sm:h-14 rounded-xl md:rounded-2xl prestige-gradient hover:shadow-lg hover:shadow-[#1B365D]/20 text-xs font-bold uppercase tracking-widest transition-all" 
+                  onClick={onBack}
+                >
+                  ត្រឡប់ទៅវិញ្ញាសា
+                </Button>
+              </div>
             )}
           </CardFooter>
         </Card>
@@ -257,64 +378,124 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
   }
 
   return (
-    <div id="quiz-container" className="max-w-4xl mx-auto space-y-8 md:space-y-12 pb-24">
+    <div id="quiz-container" className="max-w-4xl mx-auto space-y-8 md:space-y-12 pb-24 relative">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#094C72] text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs sm:text-sm font-khmer border border-amber-400/40"
+          >
+            <BookmarkCheck className="w-4 h-4 text-amber-300" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Resume Test Prompt Modal */}
+      {savedSessionPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-amber-400/40 relative overflow-hidden"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-inner">
+              <PlayCircle className="w-9 h-9 fill-amber-500/20 text-amber-600" />
+            </div>
+            <div className="text-center space-y-2 mb-6">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                រកឃើញវិញ្ញាសាមិនទាន់ចប់ • RESUME TEST
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-khmer pt-1">
+                តើអ្នកចង់បន្តធ្វើតេស្ត?
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 font-khmer leading-relaxed">
+                អ្នកមានវិញ្ញាសាកំពុងធ្វើមិនទាន់ចប់ ៖ <span className="font-bold text-[#094C72]">សំណួរទី {(savedSessionPrompt.currentIdx || 0) + 1}</span> នៃ {savedSessionPrompt.quizzes?.length || 0} (ឆ្លើយបាន {Object.keys(savedSessionPrompt.answers || {}).length} សំណួរ)
+              </p>
+            </div>
+
+            <div className="space-y-2.5">
+              <Button
+                onClick={resumeTest}
+                className="w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#094C72] to-[#1565C0] hover:from-[#073854] hover:to-[#0d47a1] text-white font-khmer font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4 fill-current text-amber-300" />
+                <span>បន្តធ្វើតេស្ត (Resume Test)</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={restartTest}
+                className="w-full h-11 sm:h-12 rounded-xl sm:rounded-2xl border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-khmer font-semibold text-xs flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>ចាប់ផ្ដើមឡើងវិញពីសំណួរទី ១ (Restart)</span>
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Quiz Header */}
-      <div className="flex items-center justify-between gap-4">
-        <Button 
-          variant="ghost" 
-          onClick={onBack} 
-          className="group gap-2 md:gap-3 text-[10px] md:text-[10px] uppercase tracking-widest font-bold rounded-xl px-2 md:px-4"
-          style={{ color: 'rgba(27, 54, 93, 0.6)', backgroundColor: 'rgba(27, 54, 93, 0.05)' }}
-        >
-          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> ត្រឡប់
-        </Button>
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <Button 
+            variant="ghost" 
+            onClick={handleSafeBack} 
+            className="group gap-1 sm:gap-1.5 text-[10px] md:text-xs uppercase tracking-widest font-bold rounded-xl px-2 sm:px-3"
+            style={{ color: 'rgba(27, 54, 93, 0.7)', backgroundColor: 'rgba(27, 54, 93, 0.05)' }}
+          >
+            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> ត្រឡប់
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={handlePauseAndExit}
+            className="gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold font-khmer rounded-xl px-2 sm:px-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 shadow-2xs"
+            title="ផ្អាក និង រក្សាទុកវិញ្ញាសា"
+          >
+            <Pause className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden xs:inline">ផ្អាក & រក្សាទុក</span>
+            <span className="xs:hidden">ផ្អាក</span>
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button 
             onClick={() => toggleFavorite(currentQuiz.id)}
-            className={cn("p-2 rounded-full transition-colors", favorites.includes(currentQuiz.id) ? "text-red-500" : "text-slate-300 hover:text-red-500")}
+            className={cn("p-1.5 sm:p-2 rounded-full transition-colors shrink-0", favorites.includes(currentQuiz.id) ? "text-red-500" : "text-slate-300 hover:text-red-500")}
           >
-            <Heart className={cn("w-6 h-6", favorites.includes(currentQuiz.id) && "fill-current")} />
+            <Heart className={cn("w-5 h-5 sm:w-6 sm:h-6", favorites.includes(currentQuiz.id) && "fill-current")} />
           </button>
-          <div className="px-4 md:px-6 py-2 bg-white rounded-full border shadow-sm truncate max-w-[200px] md:max-w-none" style={{ borderColor: 'rgba(27, 54, 93, 0.05)', fontFamily: 'var(--font-khmer)' }}>
-            <span className="text-[9px] md:text-[10px] uppercase tracking-widest font-bold text-[#D4AF37]">
+          <div className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 bg-white rounded-full border shadow-sm truncate max-w-[130px] sm:max-w-[220px] md:max-w-none" style={{ borderColor: 'rgba(27, 54, 93, 0.05)', fontFamily: 'var(--font-khmer)' }}>
+            <span className="text-[9px] md:text-[10px] uppercase tracking-widest font-bold text-[#D4AF37] truncate block">
               {category}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row justify-between items-start gap-8 md:gap-12">
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-6 sm:gap-8 md:gap-12">
         {/* Question Area */}
-        <div className="flex-grow space-y-8 md:space-y-10 w-full order-2 lg:order-1">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-3">
-              <span className="w-8 h-[2px] bg-[#D4AF37]" />
+        <div className="flex-grow space-y-6 sm:space-y-8 md:space-y-10 w-full order-2 lg:order-1">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="inline-flex items-center gap-2 sm:gap-3">
+              <span className="w-6 sm:w-8 h-[2px] bg-[#D4AF37]" />
               <span 
-                className="text-[#D4AF37] font-bold uppercase tracking-[0.4em]"
-                style={{
-                  fontFamily: 'Arial, sans-serif',
-                  width: '132.073px',
-                  height: '20.0026px',
-                  paddingTop: '2px',
-                  marginLeft: '-3px',
-                  marginTop: '0px',
-                  lineHeight: '16px',
-                  fontSize: '11px',
-                  borderStyle: 'solid',
-                  borderRadius: '1px',
-                  borderWidth: '0px'
-                }}
+                className="text-[#D4AF37] font-bold uppercase tracking-wider text-xs font-khmer whitespace-nowrap"
               >
                 សំណួរទី {currentIdx + 1} នៃ {quizzes.length}
               </span>
             </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 mb-6">
+              <div className="w-full bg-slate-100 rounded-full h-2 mb-4 sm:mb-6">
                 <div 
                   className="bg-[#D4AF37] h-2 rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${((currentIdx + 1) / quizzes.length) * 100}%` }}
                 />
               </div>
-            <h2 className="text-2xl md:text-4xl font-bold leading-[1.3] md:leading-[1.2] text-[#f8004c] whitespace-pre-wrap">
+            <h2 className="text-xl sm:text-2xl md:text-4xl font-bold leading-[1.3] md:leading-[1.2] text-[#f8004c] whitespace-pre-wrap break-words-khmer">
               {currentQuiz.question}
             </h2>
           </div>
@@ -328,7 +509,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
               className="space-y-6"
             >
               {quizType === 'MULTIPLE_CHOICE' ? (
-                <div className="grid grid-cols-1 gap-4 md:gap-5">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-5">
                   {shuffledOptions.map((item, index) => {
                     const key = item.originalKey;
                     const value = item.value;
@@ -360,7 +541,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                         disabled={showExplanation}
                         onClick={() => handleSelect(key)}
                         className={cn(
-                          "group relative flex items-center gap-4 md:gap-5 p-5 md:p-6 border-2 rounded-2xl md:rounded-[1.5rem] transition-all duration-500 text-left w-full overflow-hidden hover:z-10",
+                          "group relative flex items-center gap-3 sm:gap-4 md:gap-5 p-3.5 sm:p-5 md:p-6 border-2 rounded-2xl md:rounded-[1.5rem] transition-all duration-500 text-left w-full overflow-hidden hover:z-10",
                           !showExplanation && "bg-white border-slate-200 hover:border-[#D4AF37] hover:shadow-[0_8px_30px_rgb(212,175,55,0.15)] hover:bg-gradient-to-br hover:from-white hover:to-[#FCF9F2]",
                           isSelected && !showExplanation && "border-[#D4AF37] bg-gradient-to-br from-white to-[#FCF9F2] ring-4 ring-[#D4AF37]/10 z-10",
                           isCorrect && "border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/20 z-10",
@@ -372,16 +553,16 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                         }}
                       >
                         <div className={cn(
-                          "flex-shrink-0 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border-2 font-bold text-sm md:text-base transition-all duration-500 shadow-sm z-10",
+                          "flex-shrink-0 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full border-2 font-bold text-xs sm:text-sm md:text-base transition-all duration-500 shadow-sm z-10",
                           !showExplanation && isSelected ? "bg-[#D4AF37] text-white border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-110" : "bg-white text-slate-400 border-slate-200 group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] group-hover:bg-[#FCF9F2]",
                           isCorrect && "bg-emerald-500 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-110",
                           isWrong && "bg-rose-500 text-white border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-110",
                           showExplanation && !isCorrect && !isWrong && "bg-slate-100 text-slate-300 border-slate-200"
                         )}>
-                          {isCorrect ? <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" /> : isWrong ? <XCircle className="w-5 h-5 md:w-6 md:h-6" /> : label}
+                          {isCorrect ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" /> : isWrong ? <XCircle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" /> : label}
                         </div>
                         <span className={cn(
-                          "flex-grow text-base md:text-lg font-medium transition-colors relative z-10",
+                          "flex-grow text-sm sm:text-base md:text-lg font-medium transition-colors relative z-10 break-words-khmer",
                           isSelected || isCorrect || isWrong ? "text-slate-900 font-bold" : "text-slate-600 group-hover:text-slate-900"
                         )}
                         style={{ fontFamily: 'var(--font-khmer)' }}
@@ -391,15 +572,15 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                         
                         {/* Right side animated status badges */}
                         {showExplanation && (
-                          <div className="relative z-15 shrink-0 ml-2">
+                          <div className="relative z-15 shrink-0 ml-1 sm:ml-2">
                             {isSelected && isCorrect && (
                               <motion.div
                                 initial={{ scale: 0, opacity: 0, rotate: -15 }}
                                 animate={{ scale: 1, opacity: 1, rotate: 0 }}
                                 transition={{ type: "spring", stiffness: 350, damping: 12, delay: 0.15 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold font-khmer shadow-md shadow-emerald-500/20 border border-emerald-400"
+                                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-500 text-white text-[10px] sm:text-xs font-bold font-khmer shadow-md shadow-emerald-500/20 border border-emerald-400 whitespace-nowrap"
                               >
-                                <Sparkles className="w-3.5 h-3.5 animate-bounce" />
+                                <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-bounce" />
                                 <span>ត្រឹមត្រូវ! 🎉</span>
                               </motion.div>
                             )}
@@ -408,9 +589,9 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                                 initial={{ scale: 0, opacity: 0, rotate: 15 }}
                                 animate={{ scale: 1, opacity: 1, rotate: 0 }}
                                 transition={{ type: "spring", stiffness: 350, damping: 12, delay: 0.15 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500 text-white text-xs font-bold font-khmer shadow-md shadow-rose-500/20 border border-rose-400"
+                                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-rose-500 text-white text-[10px] sm:text-xs font-bold font-khmer shadow-md shadow-rose-500/20 border border-rose-400 whitespace-nowrap"
                               >
-                                <XCircle className="w-3.5 h-3.5 animate-pulse" />
+                                <XCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse" />
                                 <span>ខុសហើយ! ❌</span>
                               </motion.div>
                             )}
@@ -419,7 +600,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 0.95 }}
                                 transition={{ duration: 0.3, delay: 0.2 }}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-850 text-xs font-medium font-khmer border border-emerald-200"
+                                className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-850 text-[10px] sm:text-xs font-medium font-khmer border border-emerald-200 whitespace-nowrap"
                               >
                                 <span>ចម្លើយត្រឹមត្រូវ</span>
                               </motion.div>

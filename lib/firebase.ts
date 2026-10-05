@@ -17,11 +17,11 @@ const databaseId = defaultConfig.firestoreDatabaseId;
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Use initializeFirestore with experimentalForceLongPolling to eliminate WebChannel streaming disconnect errors (code=unavailable)
+// Use initializeFirestore with experimentalAutoDetectLongPolling to handle WebChannel streaming and auto-fallback without 10s timeout blocks
 export const db = (() => {
   try {
     return initializeFirestore(app, {
-      experimentalForceLongPolling: true,
+      experimentalAutoDetectLongPolling: true,
     }, databaseId);
   } catch {
     return databaseId ? getFirestore(app, databaseId) : getFirestore(app);

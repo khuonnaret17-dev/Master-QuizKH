@@ -8,12 +8,12 @@ import { db } from '@/lib/firebase';
 import { setDoc, doc, deleteDoc, collection, onSnapshot, updateDoc } from 'firebase/firestore';
 import { Ministry, QuizCategory, ShortAnswerCategory } from '@/lib/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Save, X, Pencil, ArrowLeft, ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, ExternalLink, Send, Users, Shield, Crown, Key, BookOpen, Building2, Eye, Download, Palette, Sparkles } from 'lucide-react';
+import { Save, X, Pencil, ArrowLeft, ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, ExternalLink, Send, Users, Shield, Crown, Key, BookOpen, Building2, Eye, Download, Palette, Sparkles, Hash, MessageSquare, AlignLeft, AlignCenter, AlignRight, AlignJustify, ArrowUpToLine, ArrowDownToLine, MoveVertical, Type } from 'lucide-react';
 import Link from 'next/link';
 import SafeImage from '@/components/SafeImage';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { firestoreService } from '@/lib/firestore-service';
-import { generateQuizImageBlob } from '@/lib/quiz-image-generator';
+import { generateQuizImageBlob, cleanQuestionText } from '@/lib/quiz-image-generator';
 import { auth } from '@/lib/firebase';
 
 interface AdminQuizItem {
@@ -170,7 +170,7 @@ function CategoryEditor({
   type: 'mcq' | 'qa';
   depth?: number;
   parentPath?: string[];
-  onSendTelegram?: (item: AdminQuizItem, type: 'mcq' | 'qa', elementId: string, categoryName: string) => void;
+  onSendTelegram?: (item: AdminQuizItem, type: 'mcq' | 'qa', elementId: string, categoryName: string, itemNumber?: number) => void;
 }) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
@@ -465,7 +465,7 @@ function CategoryEditor({
                             type="button"
                             onClick={() => {
                               const fullCategoryName = [...parentPath, cat.category].join('_').replace(/[\s>]+/g, '_');
-                              onSendTelegram(item, type, uniqueId, fullCategoryName)
+                              onSendTelegram(item, type, uniqueId, fullCategoryName, iIdx + 1)
                             }}
                             className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-extrabold text-blue-600 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-700 px-3 py-1.5 rounded-lg transition-all border border-blue-100/50"
                           >
@@ -744,6 +744,7 @@ export default function AdminPage() {
   const [sendingQuiz, setSendingQuiz] = useState<AdminQuizItem | null>(null);
   const [sendingQuizType, setSendingQuizType] = useState<'mcq' | 'qa' | null>(null);
   const [sendingCategoryName, setSendingCategoryName] = useState<string>('');
+  const [sendingItemNumber, setSendingItemNumber] = useState<number>(1);
   const [telegramChatId, setTelegramChatId] = useState("");
   const [telegramFormat, setTelegramFormat] = useState<'POLL' | 'TEXT' | 'IMAGE'>('TEXT');
   const [isSendingTelegram, setIsSendingTelegram] = useState(false);
@@ -759,6 +760,10 @@ export default function AdminPage() {
   const [posterShowExplanation, setPosterShowExplanation] = useState(true);
   const [posterIncludeProgramLogo, setPosterIncludeProgramLogo] = useState(true);
   const [posterProgramLogo, setPosterProgramLogo] = useState('https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg');
+  const [posterTextAlign, setPosterTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>('center');
+  const [posterVerticalAlign, setPosterVerticalAlign] = useState<'top' | 'center' | 'bottom'>('top');
+  const [posterOptionsAlign, setPosterOptionsAlign] = useState<'left' | 'center' | 'right'>('left');
+  const [posterFontSize, setPosterFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [isPreviewingPoster, setIsPreviewingPoster] = useState(false);
 
@@ -766,6 +771,9 @@ export default function AdminPage() {
   const [textIncludeAnswer, setTextIncludeAnswer] = useState(true);
   const [textUseSpoiler, setTextUseSpoiler] = useState(false);
   const [textIncludeExplanation, setTextIncludeExplanation] = useState(true);
+  const [textIncludeHeader, setTextIncludeHeader] = useState<boolean>(false);
+  const [textAnswerChoiceOnly, setTextAnswerChoiceOnly] = useState<boolean>(true);
+  const [includeItemNumber, setIncludeItemNumber] = useState<boolean>(false);
 
   // Load chat ID and poster preferences on mount
   useEffect(() => {
@@ -797,6 +805,21 @@ export default function AdminPage() {
       const savedLogo = localStorage.getItem('vignasa_poster_logo');
       if (savedLogo) setPosterProgramLogo(savedLogo);
 
+      const savedTextAlign = localStorage.getItem('vignasa_poster_text_align') as 'left' | 'center' | 'right' | 'justify' | null;
+      if (savedTextAlign) setPosterTextAlign(savedTextAlign);
+
+      const savedVerticalAlign = localStorage.getItem('vignasa_poster_vertical_align') as 'top' | 'center' | 'bottom' | null;
+      if (savedVerticalAlign) setPosterVerticalAlign(savedVerticalAlign);
+
+      const savedOptionsAlign = localStorage.getItem('vignasa_poster_options_align') as 'left' | 'center' | 'right' | null;
+      if (savedOptionsAlign) setPosterOptionsAlign(savedOptionsAlign);
+
+      const savedFontSize = localStorage.getItem('vignasa_poster_font_size') as 'small' | 'medium' | 'large' | null;
+      if (savedFontSize) setPosterFontSize(savedFontSize);
+
+      const savedFormat = localStorage.getItem('vignasa_telegram_format') as 'POLL' | 'TEXT' | 'IMAGE' | null;
+      if (savedFormat) setTelegramFormat(savedFormat);
+
       const savedTextAns = localStorage.getItem('vignasa_text_show_answer');
       if (savedTextAns !== null) setTextIncludeAnswer(savedTextAns === 'true');
 
@@ -805,6 +828,25 @@ export default function AdminPage() {
 
       const savedTextExp = localStorage.getItem('vignasa_text_show_exp');
       if (savedTextExp !== null) setTextIncludeExplanation(savedTextExp === 'true');
+
+      // User explicitly requested: "No need to include this part" -> header omitted by default
+      const savedHeader = localStorage.getItem('vignasa_text_show_header');
+      if (savedHeader === 'true') {
+        setTextIncludeHeader(true);
+      } else {
+        setTextIncludeHeader(false);
+      }
+
+      const savedChoiceOnly = localStorage.getItem('vignasa_text_choice_only');
+      if (savedChoiceOnly !== null) setTextAnswerChoiceOnly(savedChoiceOnly === 'true');
+
+      // User requested: "You do not need to include a sequence number when sending it out." -> sequence number omitted by default
+      const savedIncItemNum = localStorage.getItem('vignasa_include_sequence_number');
+      if (savedIncItemNum === 'true') {
+        setIncludeItemNumber(true);
+      } else {
+        setIncludeItemNumber(false);
+      }
     }
   }, []);
 
@@ -816,7 +858,11 @@ export default function AdminPage() {
     ansVal: boolean,
     expVal: boolean,
     incLogoVal: boolean = true,
-    logoVal: string = "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg"
+    logoVal: string = "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg",
+    textAlignVal: 'left' | 'center' | 'right' | 'justify' = posterTextAlign,
+    verticalAlignVal: 'top' | 'center' | 'bottom' = posterVerticalAlign,
+    optionsAlignVal: 'left' | 'center' | 'right' = posterOptionsAlign,
+    fontSizeVal: 'small' | 'medium' | 'large' = posterFontSize
   ) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('vignasa_poster_layout', layoutVal);
@@ -827,13 +873,27 @@ export default function AdminPage() {
       localStorage.setItem('vignasa_poster_show_exp', String(expVal));
       localStorage.setItem('vignasa_poster_inc_logo', String(incLogoVal));
       localStorage.setItem('vignasa_poster_logo', logoVal);
+      localStorage.setItem('vignasa_poster_text_align', textAlignVal);
+      localStorage.setItem('vignasa_poster_vertical_align', verticalAlignVal);
+      localStorage.setItem('vignasa_poster_options_align', optionsAlignVal);
+      localStorage.setItem('vignasa_poster_font_size', fontSizeVal);
     }
   };
 
-  const handleGeneratePosterPreview = async () => {
+  const handleGeneratePosterPreview = async (overrideParams?: {
+    textAlign?: 'left' | 'center' | 'right' | 'justify';
+    verticalAlign?: 'top' | 'center' | 'bottom';
+    optionsAlign?: 'left' | 'center' | 'right';
+    fontSize?: 'small' | 'medium' | 'large';
+  }) => {
     if (!sendingQuiz) return;
     setIsPreviewingPoster(true);
     setTelegramError("");
+    const curTextAlign = overrideParams?.textAlign || posterTextAlign;
+    const curVerticalAlign = overrideParams?.verticalAlign || posterVerticalAlign;
+    const curOptionsAlign = overrideParams?.optionsAlign || posterOptionsAlign;
+    const curFontSize = overrideParams?.fontSize || posterFontSize;
+
     try {
       if (posterPreviewUrl) {
         URL.revokeObjectURL(posterPreviewUrl);
@@ -847,12 +907,16 @@ export default function AdminPage() {
         posterShowAnswer,
         posterShowExplanation,
         posterIncludeProgramLogo,
-        posterProgramLogo
+        posterProgramLogo,
+        curTextAlign,
+        curVerticalAlign,
+        curOptionsAlign,
+        curFontSize
       );
 
       const blob = await generateQuizImageBlob(
         {
-          question: sendingQuiz.question,
+          question: cleanQuestionText(sendingQuiz.question),
           type: sendingQuizType || 'mcq',
           options: sendingQuiz.options,
           correctIndex: sendingQuiz.correctIndex,
@@ -872,8 +936,12 @@ export default function AdminPage() {
           showCorrectAnswer: posterShowAnswer,
           showExplanation: posterShowExplanation,
           customCategory: sendingCategoryName,
-          includeProgramLogo: posterIncludeProgramLogo,
-          programLogo: posterProgramLogo
+          includeProgramLogo: true,
+          programLogo: posterProgramLogo,
+          textAlign: curTextAlign,
+          verticalAlign: curVerticalAlign,
+          optionsAlign: curOptionsAlign,
+          questionFontSize: curFontSize
         }
       );
       if (blob && blob.size > 0) {
@@ -886,6 +954,97 @@ export default function AdminPage() {
     } finally {
       setIsPreviewingPoster(false);
     }
+  };
+
+  const getLiveTextPreview = () => {
+    if (!sendingQuiz) return '';
+    const enLabels = ["A", "B", "C", "D", "E", "F", "G"];
+    const kmLetters = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
+    let optionsBlock = "";
+    let correctLetter = "A";
+    let correctOptionText = "";
+
+    if (sendingQuizType === 'mcq' && sendingQuiz.options) {
+      if (Array.isArray(sendingQuiz.options)) {
+        const validOpts = sendingQuiz.options.filter(o => o && o.trim() !== "");
+        optionsBlock = validOpts.map((opt: string, idx: number) => {
+          const eLabel = enLabels[idx] || String.fromCharCode(65 + idx);
+          return `${eLabel}. ${opt}`;
+        }).join("\n");
+
+        let targetIdx = sendingQuiz.correctIndex;
+        if (targetIdx === undefined && sendingQuiz.correctAnswer) {
+          const ca = sendingQuiz.correctAnswer.trim();
+          const caUpper = ca.toUpperCase();
+          let foundIdx = enLabels.indexOf(caUpper);
+          if (foundIdx === -1) foundIdx = kmLetters.indexOf(ca);
+          if (foundIdx === -1) foundIdx = validOpts.findIndex(opt => opt.trim() === ca || opt.trim().toLowerCase() === ca.toLowerCase());
+          if (foundIdx !== -1) targetIdx = foundIdx;
+        }
+
+        if (targetIdx !== undefined && targetIdx >= 0 && validOpts[targetIdx]) {
+          correctLetter = enLabels[targetIdx] || "A";
+          correctOptionText = validOpts[targetIdx] || "";
+        } else if (validOpts[0]) {
+          correctLetter = "A";
+          correctOptionText = validOpts[0];
+        }
+      } else if (typeof sendingQuiz.options === 'object' && sendingQuiz.options !== null) {
+        const optsObj = sendingQuiz.options as Record<string, string>;
+        const entries = Object.entries(optsObj);
+        optionsBlock = entries.map(([k, v]) => `${k}. ${v}`).join("\n");
+        if (sendingQuiz.correctAnswer && optsObj[sendingQuiz.correctAnswer]) {
+          correctLetter = sendingQuiz.correctAnswer.toUpperCase().trim();
+          correctOptionText = optsObj[sendingQuiz.correctAnswer];
+        } else if (entries[0]) {
+          correctLetter = entries[0][0].toUpperCase();
+          correctOptionText = entries[0][1];
+        }
+      }
+    } else {
+      correctOptionText = sendingQuiz.answer || "";
+    }
+
+    let preview = "";
+    // User Requirement: "No need to include this part." (Omit header by default)
+    if (textIncludeHeader) {
+      const categoryFooter = `${editForm?.khmerName || editForm?.name || 'ទូទៅ'}${sendingCategoryName ? `_${sendingCategoryName.replace(/[\s>]+/g, '_')}` : ''}`;
+      preview += `🏛️ កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)\n`;
+      preview += `📚 វិញ្ញាសា៖ ${editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ'} (${categoryFooter})\n\n`;
+    }
+
+    const itemNumPrefix = includeItemNumber && sendingItemNumber ? `សំណួរទី ${sendingItemNumber}៖ ` : `សំណួរ៖ `;
+    preview += `${itemNumPrefix}${cleanQuestionText(sendingQuiz.question || '')}\n\n`;
+
+    if (sendingQuizType === 'mcq' && optionsBlock) {
+      preview += `${optionsBlock}\n\n`;
+    }
+
+    if (textIncludeAnswer) {
+      let answerDisplay = "";
+      if (sendingQuizType === 'mcq') {
+        answerDisplay = textAnswerChoiceOnly 
+          ? correctLetter
+          : `${correctLetter} (${correctOptionText})`;
+      } else {
+        answerDisplay = sendingQuiz.answer || '';
+      }
+
+      if (textUseSpoiler) {
+        preview += `👉 ចម្លើយ៖ [Spoiler: ${answerDisplay}]\n`;
+      } else {
+        preview += `👉 ចម្លើយ៖ ${answerDisplay}\n`;
+      }
+    }
+
+    if (textIncludeExplanation && sendingQuiz.explanation && sendingQuiz.explanation.trim() !== "") {
+      const trimmedExp = sendingQuiz.explanation.trim();
+      const formattedExp = /^(ពន្យល់|យោង|ឯកសារយោង)/.test(trimmedExp) ? trimmedExp : `ពន្យល់ ៖ ${trimmedExp}`;
+      preview += `\n💡 ការពន្យល់/យោង៖\n${formattedExp}\n`;
+    }
+
+    preview += `\n✈️ ${posterFooterBrand || 'Master Quiz KH'} | ${posterFooterHandle || '@qiuzs_bot'}`;
+    return preview;
   };
 
   const handleCloseTelegramModal = () => {
@@ -919,54 +1078,82 @@ export default function AdminPage() {
         const categoryFooter = `${editForm?.khmerName || editForm?.name || 'ទូទៅ'}${sendingCategoryName ? `_${sendingCategoryName.replace(/[\s>]+/g, '_')}` : ''}`;
         
         if (telegramFormat === 'TEXT') {
-          // Compute options and extract correct answer
-          const labels = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
+          // Compute options and extract correct answer choice (A, B, C, or D)
           const enLabels = ["A", "B", "C", "D", "E", "F", "G"];
+          const kmLetters = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
           let optionsBlock = "";
-          let correctAnswerFormatted = "";
+          let correctLetter = "A";
+          let correctOptionText = "";
 
           if (sendingQuizType === 'mcq' && sendingQuiz.options) {
             if (Array.isArray(sendingQuiz.options)) {
               const validOpts = sendingQuiz.options.filter(o => o && o.trim() !== "");
               optionsBlock = validOpts.map((opt: string, idx: number) => {
-                const kLabel = labels[idx] || String.fromCharCode(65 + idx);
                 const eLabel = enLabels[idx] || String.fromCharCode(65 + idx);
-                return `<b>${kLabel} (${eLabel}).</b> ${escapeHTML(opt)}`;
+                return `<b>${eLabel}.</b> ${escapeHTML(opt)}`;
               }).join("\n");
 
               let targetIdx = sendingQuiz.correctIndex;
               if (targetIdx === undefined && sendingQuiz.correctAnswer) {
-                const ca = sendingQuiz.correctAnswer.toUpperCase();
-                const foundIdx = enLabels.indexOf(ca);
+                const ca = sendingQuiz.correctAnswer.trim();
+                const caUpper = ca.toUpperCase();
+                let foundIdx = enLabels.indexOf(caUpper);
+                if (foundIdx === -1) foundIdx = kmLetters.indexOf(ca);
+                if (foundIdx === -1) foundIdx = validOpts.findIndex(opt => opt.trim() === ca || opt.trim().toLowerCase() === ca.toLowerCase());
                 if (foundIdx !== -1) targetIdx = foundIdx;
               }
 
-              if (targetIdx !== undefined && validOpts[targetIdx]) {
-                const kLabel = labels[targetIdx] || String.fromCharCode(65 + targetIdx);
-                const eLabel = enLabels[targetIdx] || String.fromCharCode(65 + targetIdx);
-                correctAnswerFormatted = `${kLabel} (${eLabel}). ${validOpts[targetIdx]}`;
+              if (targetIdx !== undefined && targetIdx >= 0 && validOpts[targetIdx]) {
+                correctLetter = enLabels[targetIdx] || "A";
+                correctOptionText = validOpts[targetIdx] || "";
               } else if (validOpts[0]) {
-                correctAnswerFormatted = `${labels[0]} (${enLabels[0]}). ${validOpts[0]}`;
+                correctLetter = "A";
+                correctOptionText = validOpts[0];
+              }
+            } else if (typeof sendingQuiz.options === 'object' && sendingQuiz.options !== null) {
+              const optsObj = sendingQuiz.options as Record<string, string>;
+              const entries = Object.entries(optsObj);
+              optionsBlock = entries.map(([k, v]) => `<b>${k}.</b> ${escapeHTML(v)}`).join("\n");
+              if (sendingQuiz.correctAnswer && optsObj[sendingQuiz.correctAnswer]) {
+                correctLetter = sendingQuiz.correctAnswer.toUpperCase().trim();
+                correctOptionText = optsObj[sendingQuiz.correctAnswer];
+              } else if (entries[0]) {
+                correctLetter = entries[0][0].toUpperCase();
+                correctOptionText = entries[0][1];
               }
             }
-          } else {
-            correctAnswerFormatted = sendingQuiz.answer || "";
           }
 
-          let text = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
-          text += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
-          text += `❓ <b>សំណួរ៖</b>\n${escapeHTML(sendingQuiz.question || '')}\n\n`;
+          let text = "";
+          // User Requirement: "No need to include this part." (Omit header by default)
+          if (textIncludeHeader) {
+            text += `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
+            text += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
+          }
+
+          // Sequence Number and Question (Omitted by default as requested)
+          const itemNumPrefix = includeItemNumber && sendingItemNumber ? `<b>សំណួរទី ${sendingItemNumber}៖</b> ` : `<b>សំណួរ៖</b> `;
+          text += `${itemNumPrefix}${escapeHTML(cleanQuestionText(sendingQuiz.question || ''))}\n\n`;
 
           if (sendingQuizType === 'mcq' && optionsBlock) {
-            text += `<b>ជម្រើសចម្លើយ៖</b>\n${optionsBlock}\n\n`;
+            text += `${optionsBlock}\n\n`;
           }
 
-          // User Requirement: "For text submissions, please provide the correct answer."
-          if (textIncludeAnswer && correctAnswerFormatted) {
-            if (textUseSpoiler) {
-              text += `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFormatted)}</b></tg-spoiler>\n`;
+          // User Requirement: "Please submit your answer choice (A, B, C, or D) and the item number"
+          if (textIncludeAnswer) {
+            let answerDisplay = "";
+            if (sendingQuizType === 'mcq') {
+              answerDisplay = textAnswerChoiceOnly 
+                ? `<b>${correctLetter}</b>`
+                : `<b>${correctLetter}</b> (${escapeHTML(correctOptionText)})`;
             } else {
-              text += `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <b>${escapeHTML(correctAnswerFormatted)}</b>\n`;
+              answerDisplay = `<b>${escapeHTML(sendingQuiz.answer || '')}</b>`;
+            }
+
+            if (textUseSpoiler) {
+              text += `👉 <b>ចម្លើយ៖</b> <tg-spoiler>${answerDisplay}</tg-spoiler>\n`;
+            } else {
+              text += `👉 <b>ចម្លើយ៖</b> ${answerDisplay}\n`;
             }
           }
 
@@ -1012,9 +1199,10 @@ export default function AdminPage() {
 
         const correctIndex = Math.min(sendingQuiz.correctIndex || 0, optionsList.length - 1);
 
+        const itemNumText = includeItemNumber && sendingItemNumber ? `សំណួរទី ${sendingItemNumber}៖ ` : '';
         const payload: Record<string, unknown> = {
           chat_id: telegramChatId.trim(),
-          question: (sendingQuiz.question || '').substring(0, 300),
+          question: `${itemNumText}${cleanQuestionText(sendingQuiz.question || '')}`.substring(0, 300),
           options: optionsList,
           type: 'quiz',
           correct_option_id: correctIndex,
@@ -1064,12 +1252,16 @@ export default function AdminPage() {
           posterShowAnswer, 
           posterShowExplanation,
           posterIncludeProgramLogo,
-          posterProgramLogo
+          posterProgramLogo,
+          posterTextAlign,
+          posterVerticalAlign,
+          posterOptionsAlign,
+          posterFontSize
         );
 
         const blob = await generateQuizImageBlob(
           {
-            question: sendingQuiz.question,
+            question: cleanQuestionText(sendingQuiz.question),
             type: sendingQuizType || 'mcq',
             options: sendingQuiz.options,
             correctIndex: sendingQuiz.correctIndex,
@@ -1089,8 +1281,12 @@ export default function AdminPage() {
             showCorrectAnswer: posterShowAnswer,
             showExplanation: posterShowExplanation,
             customCategory: sendingCategoryName,
-            includeProgramLogo: posterIncludeProgramLogo,
-            programLogo: posterProgramLogo
+            includeProgramLogo: true,
+            programLogo: posterProgramLogo,
+            textAlign: posterTextAlign,
+            verticalAlign: posterVerticalAlign,
+            optionsAlign: posterOptionsAlign,
+            questionFontSize: posterFontSize
           }
         );
 
@@ -1101,30 +1297,42 @@ export default function AdminPage() {
         formData.append("chat_id", telegramChatId.trim());
         formData.append("photo", blob, "quiz_poster.png");
 
-        // Format options and extract correct answer
+        // Format options and extract correct answer choice (A, B, C, or D)
+        const enLabels = ["A", "B", "C", "D", "E", "F", "G"];
+        const kmLetters = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
         let optionsFormattedText = "";
         let correctAnswerFullText = "";
+        let correctLetter = "A";
 
         if (sendingQuizType === 'mcq' && sendingQuiz.options) {
           if (Array.isArray(sendingQuiz.options)) {
-            const labels = ["ក", "ខ", "គ", "ឃ", "ង", "ច", "ឆ"];
             const validOpts = sendingQuiz.options.filter(o => o && o.trim() !== "");
-            optionsFormattedText = validOpts.map((opt, i) => `${labels[i] || String.fromCharCode(65 + i)}. ${opt}`).join("\n");
-            if (sendingQuiz.correctIndex !== undefined && validOpts[sendingQuiz.correctIndex]) {
-              const letter = labels[sendingQuiz.correctIndex] || String.fromCharCode(65 + sendingQuiz.correctIndex);
-              correctAnswerFullText = `${letter}. ${validOpts[sendingQuiz.correctIndex]}`;
+            optionsFormattedText = validOpts.map((opt, i) => `<b>${enLabels[i] || String.fromCharCode(65 + i)}.</b> ${escapeHTML(opt)}`).join("\n");
+            
+            let targetIdx = sendingQuiz.correctIndex;
+            if (targetIdx === undefined && sendingQuiz.correctAnswer) {
+              const ca = sendingQuiz.correctAnswer.trim();
+              const caUpper = ca.toUpperCase();
+              let foundIdx = enLabels.indexOf(caUpper);
+              if (foundIdx === -1) foundIdx = kmLetters.indexOf(ca);
+              if (foundIdx === -1) foundIdx = validOpts.findIndex(opt => opt.trim() === ca || opt.trim().toLowerCase() === ca.toLowerCase());
+              if (foundIdx !== -1) targetIdx = foundIdx;
+            }
+
+            if (targetIdx !== undefined && validOpts[targetIdx]) {
+              correctLetter = enLabels[targetIdx] || "A";
+              correctAnswerFullText = validOpts[targetIdx];
+            } else if (validOpts[0]) {
+              correctLetter = "A";
+              correctAnswerFullText = validOpts[0];
             }
           } else if (typeof sendingQuiz.options === 'object' && sendingQuiz.options !== null) {
             const optsObj = sendingQuiz.options as Record<string, string>;
             const entries = Object.entries(optsObj);
-            optionsFormattedText = entries.map(([k, v]) => {
-              const lbl = k === 'A' ? 'ក' : k === 'B' ? 'ខ' : k === 'C' ? 'គ' : k === 'D' ? 'ឃ' : k;
-              return `${lbl}. ${v}`;
-            }).join("\n");
+            optionsFormattedText = entries.map(([k, v]) => `<b>${k}.</b> ${escapeHTML(v)}`).join("\n");
             if (sendingQuiz.correctAnswer && optsObj[sendingQuiz.correctAnswer]) {
-              const k = sendingQuiz.correctAnswer;
-              const lbl = k === 'A' ? 'ក' : k === 'B' ? 'ខ' : k === 'C' ? 'គ' : k === 'D' ? 'ឃ' : k;
-              correctAnswerFullText = `${lbl}. ${optsObj[k]}`;
+              correctLetter = sendingQuiz.correctAnswer.toUpperCase().trim();
+              correctAnswerFullText = optsObj[sendingQuiz.correctAnswer];
             }
           }
         } else {
@@ -1144,16 +1352,24 @@ export default function AdminPage() {
           // User Requirement: "If the image contains only the question, please also 
           // provide the question and answer as text alongside the image."
           // =========================================================================
-          let fullCompanion = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
-          fullCompanion += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
-          fullCompanion += `❓ <b>សំណួរ៖</b>\n${escapeHTML(sendingQuiz.question || '')}\n\n`;
-
-          if (sendingQuizType === 'mcq' && optionsFormattedText) {
-            fullCompanion += `<b>ជម្រើសចម្លើយ៖</b>\n${escapeHTML(optionsFormattedText)}\n\n`;
+          let fullCompanion = "";
+          if (textIncludeHeader) {
+            fullCompanion += `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
+            fullCompanion += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
           }
 
-          if (correctAnswerFullText) {
-            fullCompanion += `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFullText)}</b></tg-spoiler>\n`;
+          const itemNumPrefix = includeItemNumber && sendingItemNumber ? `<b>សំណួរទី ${sendingItemNumber}៖</b> ` : `<b>សំណួរ៖</b> `;
+          fullCompanion += `${itemNumPrefix}${escapeHTML(cleanQuestionText(sendingQuiz.question || ''))}\n\n`;
+
+          if (sendingQuizType === 'mcq' && optionsFormattedText) {
+            fullCompanion += `${optionsFormattedText}\n\n`;
+          }
+
+          if (sendingQuizType === 'mcq') {
+            const answerDisplay = textAnswerChoiceOnly ? `<b>${correctLetter}</b>` : `<b>${correctLetter}</b> (${escapeHTML(correctAnswerFullText)})`;
+            fullCompanion += `👉 <b>ចម្លើយ៖</b> <tg-spoiler>${answerDisplay}</tg-spoiler>\n`;
+          } else if (correctAnswerFullText) {
+            fullCompanion += `👉 <b>ចម្លើយ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFullText)}</b></tg-spoiler>\n`;
           }
 
           if (sendingQuiz.explanation && sendingQuiz.explanation.trim() !== "") {
@@ -1169,9 +1385,13 @@ export default function AdminPage() {
           } else {
             // If the combined text exceeds Telegram's 1024-char caption limit, 
             // set a concise caption and send companion full text alongside
-            caption = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ</b>\n` +
-                      `❓ <b>សំណួរ៖</b> ${escapeHTML((sendingQuiz.question || '').substring(0, 260))}...\n\n` +
-                      (correctAnswerFullText ? `👉 <b>ចម្លើយត្រឹមត្រូវ៖</b> <tg-spoiler><b>${escapeHTML(correctAnswerFullText)}</b></tg-spoiler>\n\n` : '') +
+            const answerShortDisplay = sendingQuizType === 'mcq' 
+              ? (textAnswerChoiceOnly ? `<b>${correctLetter}</b>` : `<b>${correctLetter}</b> (${escapeHTML(correctAnswerFullText)})`)
+              : `<b>${escapeHTML(correctAnswerFullText)}</b>`;
+
+            caption = (textIncludeHeader ? `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n` : '') +
+                      `${itemNumPrefix}${escapeHTML(cleanQuestionText(sendingQuiz.question || '').substring(0, 240))}...\n\n` +
+                      (correctAnswerFullText ? `👉 <b>ចម្លើយ៖</b> <tg-spoiler>${answerShortDisplay}</tg-spoiler>\n\n` : '') +
                       `<i>(សូមពិនិត្យសំណួរ ចម្លើយពេញលេញ និងការពន្យល់ក្នុងសារអត្ថបទខាងក្រោម)</i>\n\n` +
                       `✈️ <a href="${footerLink}">${escapeHTML(posterFooterBrand || 'Master Quiz KH')}</a> | ${escapeHTML(posterFooterHandle)}`;
             companionFullMessage = fullCompanion;
@@ -1180,13 +1400,29 @@ export default function AdminPage() {
         } else {
           // =========================================================================
           // IMAGE CONTAINS BOTH QUESTION AND ANSWER:
+          // User Requirement:
+          // 1. Submit answer choice (A, B, C, or D)
+          // 2. "No need to include this part" -> omit institutional header
+          // 3. "You do not need to include a sequence number when sending it out."
           // =========================================================================
-          let bothCaption = `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ</b> • ${escapeHTML(editForm?.khmerName || 'វិញ្ញាសា')}\n`;
-          bothCaption += `❓ <b>សំណួរ៖</b> ${escapeHTML((sendingQuiz.question || '').substring(0, 280))}\n\n`;
-          bothCaption += `<i>(សូមពិនិត្យចម្លើយត្រឹមត្រូវ និងការពន្យល់លម្អិតក្នុងរូបភាព Poster ខាងលើ)</i>\n`;
-          if (correctAnswerFullText) {
-            bothCaption += `\n👉 <b>ចម្លើយ៖</b> ${escapeHTML(correctAnswerFullText.substring(0, 150))}\n`;
+          const itemNumPrefix = includeItemNumber && sendingItemNumber ? `<b>សំណួរទី ${sendingItemNumber}៖</b> ` : `<b>សំណួរ៖</b> `;
+          let bothCaption = "";
+          if (textIncludeHeader) {
+            bothCaption += `🏛️ <b>កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ (Vignasa Quiz KH)</b>\n`;
+            bothCaption += `📚 <b>វិញ្ញាសា៖</b> ${escapeHTML(editForm?.khmerName || editForm?.name || 'វិញ្ញាសាទូទៅ')} (${escapeHTML(categoryFooter)})\n\n`;
           }
+          bothCaption += `${itemNumPrefix}${escapeHTML(cleanQuestionText(sendingQuiz.question || '').substring(0, 280))}\n\n`;
+          bothCaption += `<i>(សូមពិនិត្យចម្លើយ និងការពន្យល់លម្អិតក្នុងរូបភាព Poster ខាងលើ)</i>\n`;
+
+          if (sendingQuizType === 'mcq') {
+            const answerDisplay = textAnswerChoiceOnly 
+              ? `<b>${correctLetter}</b>`
+              : `<b>${correctLetter}</b> (${escapeHTML(correctAnswerFullText.substring(0, 120))})`;
+            bothCaption += `\n👉 <b>ចម្លើយ៖</b> ${answerDisplay}\n`;
+          } else if (correctAnswerFullText) {
+            bothCaption += `\n👉 <b>ចម្លើយ៖</b> <b>${escapeHTML(correctAnswerFullText.substring(0, 150))}</b>\n`;
+          }
+
           if (posterShowExplanation && sendingQuiz.explanation) {
             const exp = sendingQuiz.explanation.trim();
             bothCaption += `\n💡 <b>${escapeHTML(/^(ពន្យល់|យោង)/.test(exp) ? exp : `ពន្យល់៖ ${exp}`)}</b>\n`;
@@ -1489,22 +1725,22 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-6 md:p-12 font-sans">
+    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-12 font-sans overflow-x-hidden">
       <div className="max-w-5xl mx-auto">
-        <header className="mb-4 flex items-center justify-between">
+        <header className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-4 transition-colors">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
+            <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-2 sm:mb-4 transition-colors text-xs sm:text-sm">
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              ត្រឡប់ទៅទំព័រដើម (Back to Home)
             </Link>
-            <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-            <p className="text-slate-500">Manage ministry information, quizzes, and terms</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+            <p className="text-xs sm:text-sm text-slate-500">Manage ministry information, quizzes, and terms</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             {(activeTab === 'INSTITUTION' || activeTab === 'SUBJECT') && (
               <button 
                 onClick={handleAddMinistry}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20"
+                className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-xs sm:text-sm"
               >
                 <Plus className="w-4 h-4" /> {activeTab === 'INSTITUTION' ? 'Add Ministry' : 'Add Subject'}
               </button>
@@ -1512,27 +1748,27 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <div className="flex gap-8 mb-8 border-b border-slate-200">
+        <div className="flex gap-4 sm:gap-8 mb-6 sm:mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar py-0.5">
           <button 
             onClick={() => setActiveTab('INSTITUTION')}
-            className={`pb-4 text-sm font-bold transition-colors flex items-center gap-2 ${
-              activeTab === 'INSTITUTION' ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"
+            className={`pb-3 sm:pb-4 text-xs sm:text-sm font-bold transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 ${
+              activeTab === 'INSTITUTION' ? "text-blue-600 border-b-2 border-blue-600 font-bold" : "text-slate-400 hover:text-slate-600"
             }`}
           >
             <Building2 className="w-4 h-4" /> គ្រប់គ្រងក្រសួង
           </button>
           <button 
             onClick={() => setActiveTab('SUBJECT')}
-            className={`pb-4 text-sm font-bold transition-colors flex items-center gap-2 ${
-              activeTab === 'SUBJECT' ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"
+            className={`pb-3 sm:pb-4 text-xs sm:text-sm font-bold transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 ${
+              activeTab === 'SUBJECT' ? "text-blue-600 border-b-2 border-blue-600 font-bold" : "text-slate-400 hover:text-slate-600"
             }`}
           >
             <BookOpen className="w-4 h-4" /> គ្រប់គ្រងវិញ្ញាសា
           </button>
           <button 
             onClick={() => setActiveTab('USERS')}
-            className={`pb-4 text-sm font-bold transition-colors flex items-center gap-2 ${
-              activeTab === 'USERS' ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"
+            className={`pb-3 sm:pb-4 text-xs sm:text-sm font-bold transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 ${
+              activeTab === 'USERS' ? "text-blue-600 border-b-2 border-blue-600 font-bold" : "text-slate-400 hover:text-slate-600"
             }`}
           >
             <Users className="w-4 h-4" /> គ្រប់គ្រងសមាជិក
@@ -1748,11 +1984,13 @@ export default function AdminPage() {
                                     categories={editForm.mcqs || []}
                                     updateParent={(newMcqs: AdminCategory[]) => updateField('mcqs', newMcqs as unknown as QuizCategory[])}
                                     type="mcq"
-                                    onSendTelegram={(item, type, elementId, categoryName) => {
+                                    onSendTelegram={(item, type, elementId, categoryName, itemNum) => {
                                       setSendingQuiz(item);
                                       setSendingQuizType(type);
                                       setSendingCategoryName(categoryName);
-                                      setTelegramFormat('POLL');
+                                      setSendingItemNumber(itemNum || 1);
+                                      const savedFmt = (typeof window !== 'undefined' && localStorage.getItem('vignasa_telegram_format') as 'POLL' | 'TEXT' | 'IMAGE') || 'TEXT';
+                                      setTelegramFormat(savedFmt);
                                     }}
                                   />
                                   </div>
@@ -1774,11 +2012,13 @@ export default function AdminPage() {
                                     categories={editForm.shortAnswers || []}
                                     updateParent={(newQa: AdminCategory[]) => updateField('shortAnswers', newQa as unknown as ShortAnswerCategory[])}
                                     type="qa"
-                                    onSendTelegram={(item, type, elementId, categoryName) => {
+                                    onSendTelegram={(item, type, elementId, categoryName, itemNum) => {
                                       setSendingQuiz(item);
                                       setSendingQuizType(type);
                                       setSendingCategoryName(categoryName);
-                                      setTelegramFormat('TEXT');
+                                      setSendingItemNumber(itemNum || 1);
+                                      const savedFmt = (typeof window !== 'undefined' && localStorage.getItem('vignasa_telegram_format') as 'POLL' | 'TEXT' | 'IMAGE') || 'TEXT';
+                                      setTelegramFormat(savedFmt === 'POLL' ? 'TEXT' : savedFmt);
                                     }}
                                   />
                                   </div>
@@ -1786,36 +2026,38 @@ export default function AdminPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="p-6 flex items-center gap-6">
-                              <div {...provided.dragHandleProps} className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing p-1 transition-colors">
-                                <GripVertical className="w-5 h-5" />
+                            <div className="p-3.5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-3.5 sm:gap-6 overflow-hidden">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div {...provided.dragHandleProps} className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing p-1 transition-colors shrink-0">
+                                  <GripVertical className="w-5 h-5" />
+                                </div>
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-slate-50 border border-slate-100 flex-shrink-0 flex items-center justify-center p-1.5 sm:p-2 relative overflow-hidden">
+                                  <SafeImage src={ministry.logo} alt="" fill className="object-contain p-1 sm:p-2" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-bold text-slate-800 text-base sm:text-lg truncate flex items-center gap-2">
+                                    {ministry.khmerName}
+                                    {ministry.groupType === 'SUBJECT' && (
+                                      <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold shrink-0">វិញ្ញាសា</span>
+                                    )}
+                                    {ministry.groupType !== 'SUBJECT' && (
+                                      <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold shrink-0">ក្រសួង</span>
+                                    )}
+                                  </h3>
+                                  <p className="text-xs sm:text-sm text-slate-500 truncate">{ministry.name}</p>
+                                </div>
                               </div>
-                              <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex-shrink-0 flex items-center justify-center p-2 relative overflow-hidden">
-                                <SafeImage src={ministry.logo} alt="" fill className="object-contain p-2" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-slate-800 text-lg truncate flex items-center gap-2">
-                                  {ministry.khmerName}
-                                  {ministry.groupType === 'SUBJECT' && (
-                                    <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">វិញ្ញាសា</span>
-                                  )}
-                                  {ministry.groupType !== 'SUBJECT' && (
-                                    <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">ក្រសួង</span>
-                                  )}
-                                </h3>
-                                <p className="text-sm text-slate-500 truncate">{ministry.name}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                                 <button
                                   onClick={() => handleEdit(ministry)}
-                                  className="flex-shrink-0 flex items-center gap-2 bg-slate-50 text-slate-600 hover:text-blue-600 px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-all font-bold text-sm"
+                                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 bg-slate-50 text-slate-600 hover:text-blue-600 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl hover:bg-blue-50 transition-all font-bold text-xs sm:text-sm"
                                 >
-                                  <Pencil className="w-4 h-4" />
+                                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                   Edit Content
                                 </button>
                                 <button
                                   onClick={() => handleDeleteMinistry(ministry.id, ministry.khmerName)}
-                                  className="flex-shrink-0 flex items-center justify-center p-2.5 bg-slate-50 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all"
+                                  className="flex-shrink-0 flex items-center justify-center p-2 sm:p-2.5 bg-slate-50 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -2196,13 +2438,83 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Universal Question Item Number Customization */}
+              <div className="p-3 bg-white rounded-2xl border border-slate-200/90 shadow-2xs text-left space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                      <Hash className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-black text-slate-800 font-khmer">លេខរៀងសំណួរ (Sequence Number)</h5>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {includeItemNumber 
+                          ? `ដាក់បញ្ចូលលេខរៀង៖ សំណួរទី ${sendingItemNumber} (Include sequence)` 
+                          : "មិនដាក់លេខរៀងពេលផ្ញើ (No sequence number)"}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={includeItemNumber}
+                      onChange={(e) => {
+                        setIncludeItemNumber(e.target.checked);
+                        if (typeof window !== 'undefined') {
+                          localStorage.setItem('vignasa_include_sequence_number', String(e.target.checked));
+                        }
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                    />
+                    <span className="text-[11px] font-bold text-slate-700 font-khmer">
+                      {includeItemNumber ? "ដាក់លេខរៀង" : "មិនដាក់លេខរៀង"}
+                    </span>
+                  </label>
+                </div>
+
+                {includeItemNumber && (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <span className="text-[10.5px] font-medium text-slate-500 font-khmer">ជ្រើសរើសលេខរៀងសំណួរ៖</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSendingItemNumber(Math.max(1, sendingItemNumber - 1))}
+                        className="w-7 h-7 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        -
+                      </button>
+                      <div className="flex items-center px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                        <span className="text-xs text-slate-500 font-khmer font-bold mr-1">សំណួរទី</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={sendingItemNumber}
+                          onChange={(e) => setSendingItemNumber(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-12 text-center font-black text-xs outline-none bg-transparent text-slate-900"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSendingItemNumber(sendingItemNumber + 1)}
+                        className="w-7 h-7 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Form Field: Format Selection */}
               <div className="space-y-2">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">ជ្រើសរើសទម្រង់ផ្ញើ (Sending Format)</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setTelegramFormat('POLL')}
+                    onClick={() => {
+                      setTelegramFormat('POLL');
+                      if (typeof window !== 'undefined') localStorage.setItem('vignasa_telegram_format', 'POLL');
+                    }}
                     disabled={sendingQuizType !== 'mcq'}
                     className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                       telegramFormat === 'POLL' 
@@ -2218,7 +2530,10 @@ export default function AdminPage() {
 
                   <button
                     type="button"
-                    onClick={() => setTelegramFormat('TEXT')}
+                    onClick={() => {
+                      setTelegramFormat('TEXT');
+                      if (typeof window !== 'undefined') localStorage.setItem('vignasa_telegram_format', 'TEXT');
+                    }}
                     className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                       telegramFormat === 'TEXT' 
                         ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' 
@@ -2231,7 +2546,10 @@ export default function AdminPage() {
 
                   <button
                     type="button"
-                    onClick={() => setTelegramFormat('IMAGE')}
+                    onClick={() => {
+                      setTelegramFormat('IMAGE');
+                      if (typeof window !== 'undefined') localStorage.setItem('vignasa_telegram_format', 'IMAGE');
+                    }}
                     className={`py-2 px-1 text-[11px] font-extrabold rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                       telegramFormat === 'IMAGE' 
                         ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm ring-1 ring-blue-500/30' 
@@ -2258,7 +2576,7 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <h5 className="text-xs font-black text-slate-800 font-khmer">ការកំណត់សារអត្ថបទ (Text Quiz Options)</h5>
-                      <p className="text-[10px] text-slate-400 font-medium">កំណត់ការផ្តល់ចម្លើយត្រឹមត្រូវ និងការពន្យល់ក្នុងសារ Telegram</p>
+                      <p className="text-[10px] text-slate-400 font-medium">កំណត់ចម្លើយ (A, B, C, D) លេខរៀងសំណួរ និងពិនិត្យគំរូសារ</p>
                     </div>
                   </div>
 
@@ -2277,13 +2595,52 @@ export default function AdminPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5">
                           <span>👉</span>
-                          <span>ផ្តល់ចម្លើយត្រឹមត្រូវ (Provide Correct Answer)</span>
+                          <span>ផ្តល់ចម្លើយត្រឹមត្រូវ (Provide Correct Answer A, B, C, D)</span>
                         </div>
                         <p className="text-[10px] text-slate-500 font-normal mt-0.5 font-khmer">
-                          ផ្ញើចម្លើយត្រឹមត្រូវពេញលេញ (អក្សរ និងខ្លឹមសារចម្លើយ) រួមជាមួយសំណួរ
+                          បង្ហាញចម្លើយត្រឹមត្រូវក្នុងសារ Telegram
                         </p>
                       </div>
                     </label>
+
+                    {/* Answer Choice Style: Letter only (A, B, C, D) vs Full Text */}
+                    {textIncludeAnswer && sendingQuizType === 'mcq' && (
+                      <div className="ml-4 p-2.5 bg-slate-100/80 rounded-xl space-y-1.5 text-xs font-khmer">
+                        <span className="text-[9.5px] font-extrabold text-slate-500 uppercase tracking-wider block">ទម្រង់ចម្លើយពហុជ្រើសរើស (Answer Format)៖</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTextAnswerChoiceOnly(true);
+                              if (typeof window !== 'undefined') localStorage.setItem('vignasa_text_choice_only', 'true');
+                            }}
+                            className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
+                              textAnswerChoiceOnly
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-bold'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="text-[11px] font-black">តែអក្សរចម្លើយ (A, B, C, D)</div>
+                            <div className="text-[9px] opacity-80 mt-0.5">ឧ. ចម្លើយ៖ A</div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTextAnswerChoiceOnly(false);
+                              if (typeof window !== 'undefined') localStorage.setItem('vignasa_text_choice_only', 'false');
+                            }}
+                            className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
+                              !textAnswerChoiceOnly
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-bold'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="text-[11px] font-black">អក្សរ + ខ្លឹមសារ</div>
+                            <div className="text-[9px] opacity-80 mt-0.5">ឧ. ចម្លើយ៖ A (ខ្លឹមសារ)</div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Telegram Spoiler Toggle */}
                     {textIncludeAnswer && (
@@ -2309,6 +2666,28 @@ export default function AdminPage() {
                       </label>
                     )}
 
+                    {/* Header Toggle (Omitted by default) */}
+                    <label className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 text-slate-800 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={textIncludeHeader}
+                        onChange={(e) => {
+                          setTextIncludeHeader(e.target.checked);
+                          if (typeof window !== 'undefined') localStorage.setItem('vignasa_text_show_header', String(e.target.checked));
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span>🏛️</span>
+                          <span>រួមបញ្ចូលក្បាលសារស្ថាប័ន (Title & Subject Header)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-normal mt-0.5 font-khmer">
+                          បិទ (Default Omitted)៖ មិនបញ្ចូល &quot;🏛️ កម្មវិធីត្រៀមប្រឡង... / 📚 វិញ្ញាសា...&quot; ឡើយ (No need to include this part)
+                        </p>
+                      </div>
+                    </label>
+
                     {/* Include Explanation Toggle */}
                     <label className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 text-slate-800 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors">
                       <input
@@ -2327,6 +2706,22 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </label>
+
+                    {/* Live Text Preview Box */}
+                    <div className="p-3 bg-slate-900 rounded-xl text-left border border-slate-800 space-y-1.5 mt-3">
+                      <div className="flex items-center justify-between text-slate-300 text-[10.5px] font-bold font-khmer">
+                        <span className="flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+                          <span>គំរូសារ Telegram ជាក់ស្តែង (Live Preview)</span>
+                        </span>
+                        <span className="text-[9px] text-emerald-400 font-semibold">
+                          {textIncludeHeader ? 'មានក្បាលសារស្ថាប័ន' : 'គ្មានក្បាលសារស្ថាប័ន (Omitted)'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 bg-slate-950 rounded-lg text-xs font-khmer text-slate-200 whitespace-pre-wrap leading-relaxed select-text border border-slate-800/80 font-normal max-h-48 overflow-y-auto">
+                        {getLiveTextPreview()}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2347,7 +2742,7 @@ export default function AdminPage() {
 
                     <button
                       type="button"
-                      onClick={handleGeneratePosterPreview}
+                      onClick={() => handleGeneratePosterPreview()}
                       disabled={isPreviewingPoster}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-bold shadow-2xs transition-all cursor-pointer font-khmer"
                     >
@@ -2556,11 +2951,27 @@ export default function AdminPage() {
                     </div>
 
                     {!posterShowAnswer ? (
-                      <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[10.5px] text-amber-800 font-khmer flex items-start gap-2">
-                        <span className="text-sm mt-0.5">💡</span>
-                        <span className="leading-relaxed">
-                          <b>ការរៀបចំស្វ័យប្រវត្តិ៖</b> ផ្ទាំងរូបភាពនឹងមានតែសំណួរ (មិនបង្ហាញចម្លើយ)។ ប្រព័ន្ធនឹងរៀបចំសំណួរ ជម្រើស និងចម្លើយត្រឹមត្រូវ (Telegram Spoiler) ព្រមទាំងការពន្យល់លម្អិត ជាអត្ថបទផ្ញើភ្ជាប់ជាមួយរូបភាពភ្លាមៗ!
-                        </span>
+                      <div className="space-y-2">
+                        <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[10.5px] text-amber-800 font-khmer flex items-start gap-2">
+                          <span className="text-sm mt-0.5">💡</span>
+                          <span className="leading-relaxed">
+                            <b>ការរៀបចំស្វ័យប្រវត្តិ៖</b> ផ្ទាំងរូបភាពនឹងមានតែសំណួរ (មិនបង្ហាញចម្លើយ)។ ប្រព័ន្ធនឹងរៀបចំសំណួរ ជម្រើស និងចម្លើយត្រឹមត្រូវ (Telegram Spoiler) ព្រមទាំងការពន្យល់លម្អិត ជាអត្ថបទផ្ញើភ្ជាប់ជាមួយរូបភាពភ្លាមៗ!
+                          </span>
+                        </div>
+
+                        {/* Companion Text Live Preview */}
+                        <div className="p-3 bg-slate-900 rounded-xl text-left border border-slate-800 space-y-1.5 mt-2">
+                          <div className="flex items-center justify-between text-slate-300 text-[10.5px] font-bold font-khmer">
+                            <span className="flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+                              <span>អត្ថបទផ្ញើភ្ជាប់ជាមួយរូបភាព (Text alongside image)</span>
+                            </span>
+                            <span className="text-[9px] text-emerald-400 font-semibold">គ្មានក្បាលសារស្ថាប័ន</span>
+                          </div>
+                          <div className="p-2.5 bg-slate-950 rounded-lg text-xs font-khmer text-slate-200 whitespace-pre-wrap leading-relaxed select-text border border-slate-800/80 font-normal max-h-36 overflow-y-auto">
+                            {getLiveTextPreview()}
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <label className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-200 text-slate-700 text-xs font-bold font-khmer cursor-pointer hover:bg-slate-50 transition-colors">
@@ -2587,7 +2998,222 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  {/* 4. Footer Customization */}
+                  {/* 4. Text Position & Alignment Customization */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs space-y-3.5">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                      <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                        <Type className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-slate-800 font-khmer">ទីតាំង និងតម្រឹមអត្ថបទលើរូបភាព (Text Position & Alignment)</h5>
+                        <p className="text-[10px] text-slate-400 font-medium font-khmer">កំណត់ទីតាំងសំណួរ តម្រឹមអក្សរ និងទីតាំងបញ្ឈរក្នុងផ្ទាំងរូបភាព Poster</p>
+                      </div>
+                    </div>
+
+                    {/* Question Text Horizontal Alignment */}
+                    <div className="space-y-1.5">
+                      <span className="text-[9.5px] font-extrabold text-slate-500 uppercase tracking-wider block font-khmer">
+                        តម្រឹមសំណួរ (Question Text Alignment)
+                      </span>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { id: 'left', label: 'ឆ្វេង (Left)', icon: AlignLeft },
+                          { id: 'center', label: 'កណ្តាល (Center)', icon: AlignCenter },
+                          { id: 'right', label: 'ស្តាំ (Right)', icon: AlignRight },
+                          { id: 'justify', label: 'ពេញបន្ទាត់ (Justify)', icon: AlignJustify }
+                        ].map((item) => {
+                          const IconComponent = item.icon;
+                          const isSelected = posterTextAlign === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                const val = item.id as 'left' | 'center' | 'right' | 'justify';
+                                setPosterTextAlign(val);
+                                savePosterConfig(
+                                  posterLayout,
+                                  posterFooterBrand,
+                                  posterFooterTagline,
+                                  posterFooterHandle,
+                                  posterShowAnswer,
+                                  posterShowExplanation,
+                                  posterIncludeProgramLogo,
+                                  posterProgramLogo,
+                                  val,
+                                  posterVerticalAlign,
+                                  posterOptionsAlign,
+                                  posterFontSize
+                                );
+                                if (posterPreviewUrl) {
+                                  handleGeneratePosterPreview({ textAlign: val });
+                                }
+                              }}
+                              className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-bold'
+                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <IconComponent className="w-3.5 h-3.5" />
+                              <span className="text-[9.5px] font-khmer leading-tight">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Content Vertical Position */}
+                    <div className="space-y-1.5">
+                      <span className="text-[9.5px] font-extrabold text-slate-500 uppercase tracking-wider block font-khmer">
+                        ទីតាំងបញ្ឈរក្នុងរូបភាព (Vertical Placement)
+                      </span>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { id: 'top', label: 'ខាងលើ (Top)', desc: 'តម្រឹមខាងលើ', icon: ArrowUpToLine },
+                          { id: 'center', label: 'កណ្តាល (Middle)', desc: 'ចំកណ្តាលផ្ទាំង', icon: MoveVertical },
+                          { id: 'bottom', label: 'ខាងក្រោម (Bottom)', desc: 'តម្រឹមខាងក្រោម', icon: ArrowDownToLine }
+                        ].map((item) => {
+                          const IconComponent = item.icon;
+                          const isSelected = posterVerticalAlign === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                const val = item.id as 'top' | 'center' | 'bottom';
+                                setPosterVerticalAlign(val);
+                                savePosterConfig(
+                                  posterLayout,
+                                  posterFooterBrand,
+                                  posterFooterTagline,
+                                  posterFooterHandle,
+                                  posterShowAnswer,
+                                  posterShowExplanation,
+                                  posterIncludeProgramLogo,
+                                  posterProgramLogo,
+                                  posterTextAlign,
+                                  val,
+                                  posterOptionsAlign,
+                                  posterFontSize
+                                );
+                                if (posterPreviewUrl) {
+                                  handleGeneratePosterPreview({ verticalAlign: val });
+                                }
+                              }}
+                              className={`py-2 px-1.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-bold'
+                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <IconComponent className="w-3.5 h-3.5" />
+                              <div className="text-[10px] font-khmer font-bold">{item.label}</div>
+                              <div className={`text-[8.5px] font-khmer ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{item.desc}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Options Alignment & Question Font Size Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-100">
+                      {/* Options Alignment */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block font-khmer">
+                          តម្រឹមជម្រើសចម្លើយ (Options)
+                        </span>
+                        <div className="grid grid-cols-2 gap-1">
+                          {[
+                            { id: 'left', label: 'ឆ្វេង (Left)' },
+                            { id: 'center', label: 'កណ្តាល (Center)' }
+                          ].map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                const val = opt.id as 'left' | 'center';
+                                setPosterOptionsAlign(val);
+                                savePosterConfig(
+                                  posterLayout,
+                                  posterFooterBrand,
+                                  posterFooterTagline,
+                                  posterFooterHandle,
+                                  posterShowAnswer,
+                                  posterShowExplanation,
+                                  posterIncludeProgramLogo,
+                                  posterProgramLogo,
+                                  posterTextAlign,
+                                  posterVerticalAlign,
+                                  val,
+                                  posterFontSize
+                                );
+                                if (posterPreviewUrl) {
+                                  handleGeneratePosterPreview({ optionsAlign: val });
+                                }
+                              }}
+                              className={`py-1.5 px-1 rounded-lg border text-[9.5px] font-khmer font-bold transition-all cursor-pointer ${
+                                posterOptionsAlign === opt.id
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Question Font Size */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block font-khmer">
+                          ទំហំអក្សរសំណួរ (Font Size)
+                        </span>
+                        <div className="grid grid-cols-3 gap-1">
+                          {[
+                            { id: 'small', label: 'តូច' },
+                            { id: 'medium', label: 'មធ្យម' },
+                            { id: 'large', label: 'ធំ' }
+                          ].map((fs) => (
+                            <button
+                              key={fs.id}
+                              type="button"
+                              onClick={() => {
+                                const val = fs.id as 'small' | 'medium' | 'large';
+                                setPosterFontSize(val);
+                                savePosterConfig(
+                                  posterLayout,
+                                  posterFooterBrand,
+                                  posterFooterTagline,
+                                  posterFooterHandle,
+                                  posterShowAnswer,
+                                  posterShowExplanation,
+                                  posterIncludeProgramLogo,
+                                  posterProgramLogo,
+                                  posterTextAlign,
+                                  posterVerticalAlign,
+                                  posterOptionsAlign,
+                                  val
+                                );
+                                if (posterPreviewUrl) {
+                                  handleGeneratePosterPreview({ fontSize: val });
+                                }
+                              }}
+                              className={`py-1.5 px-1 rounded-lg border text-[9.5px] font-khmer font-bold transition-all cursor-pointer ${
+                                posterFontSize === fs.id
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {fs.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Footer Customization */}
                   <div className="space-y-2 pt-1 border-t border-slate-200/60">
                     <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block font-khmer">
                       កែសម្រួល Footer ខាងក្រោម Poster

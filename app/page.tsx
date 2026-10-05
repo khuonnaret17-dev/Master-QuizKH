@@ -4,9 +4,11 @@
 
 import { motion } from "motion/react";
 import { useFirebase } from "@/lib/FirebaseProvider";
-import { Search, Info, AlertCircle, LogIn, CheckCircle2, User, Lock, X, History, Heart } from "lucide-react";
+import { Search, Info, AlertCircle, LogIn, CheckCircle2, User, Lock, X, History, Heart, Play, PlayCircle } from "lucide-react";
 import { useState, useEffect, useMemo, useDeferredValue } from "react";
 import Link from "next/link";
+import { getLastActiveSession, clearLastActiveSession } from "@/lib/quiz-session";
+import { QuizSession } from "@/lib/types";
 
 import { useRouter } from "next/navigation";
 import { UserNav } from "@/components/UserNav";
@@ -14,9 +16,10 @@ import { MinistryList } from "@/components/MinistryList";
 import SafeImage from "@/components/SafeImage";
 
 export default function Home() {
-  const { ministries, loading, authLoading, user, userProgress, loginCustomMember, registerCustomMember, loginCustomAdmin, userRole } = useFirebase();
+  const { ministries, loading, authLoading, user, userProgress, loginCustomMember, registerCustomMember, loginCustomAdmin, userRole, favorites } = useFirebase();
   const [searchTerm, setSearchTerm] = useState("");
   const [mainTab, setMainTab] = useState<'INSTITUTION' | 'SUBJECT'>('INSTITUTION');
+  const [resumeSession, setResumeSession] = useState<QuizSession | null>(null);
   const router = useRouter();
 
   // Recent searches state & persistence
@@ -29,6 +32,8 @@ export default function Home() {
       if (saved) {
         setRecentSearches(JSON.parse(saved));
       }
+      const activeQuiz = getLastActiveSession();
+      setResumeSession(activeQuiz);
     } catch {
       // ignore
     }
@@ -165,12 +170,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-transparent p-4 md:p-12">
+    <main className="min-h-screen bg-transparent p-2 sm:p-4 md:p-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-8 md:mb-12 text-center relative pt-4 md:pt-0">
+        <header className="mb-6 md:mb-12 text-center relative pt-2 sm:pt-4 md:pt-0">
           <div 
-            className="pt-4 md:pt-6 pb-12 flex flex-col items-center relative mx-2 md:mx-4 overflow-hidden rounded-[2.5rem] shadow-2xl" 
+            className="pt-4 md:pt-6 pb-8 md:pb-12 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.5rem] shadow-2xl" 
             style={{ 
               backgroundColor: '#094C72',
               backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 17L3 10l7-7 7 7-7 7z\' fill=\'%23D4AF37\' fill-opacity=\'0.04\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
@@ -203,13 +208,13 @@ export default function Home() {
             />
             
             {/* Top Navigation Row inside banner */}
-            <div className="w-full flex justify-end items-center gap-3 px-4 sm:px-6 md:px-8 mb-4 md:mb-6 z-30 relative">
+            <div className="w-full flex justify-end items-center flex-wrap gap-2 sm:gap-3 px-3 sm:px-6 md:px-8 mb-4 md:mb-6 z-30 relative">
               {userRole === 'ADMIN' && (
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link 
                     href="/admin" 
                     id="admin-link"
-                    className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer shrink-0"
                   >
                     <Info className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                     <span className="hidden sm:inline">គ្រប់គ្រង (Admin)</span>
@@ -219,10 +224,15 @@ export default function Home() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link 
                   href="/favorites"
-                  className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-md font-black text-xs md:text-sm font-khmer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 md:px-5 md:py-2.5 bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-md font-black text-xs md:text-sm font-khmer shrink-0 relative"
                 >
-                  <Heart className="w-4 h-4" />
+                  <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'text-rose-400 fill-rose-400' : ''}`} />
                   <span className="hidden sm:inline">ចូលចិត្ត</span>
+                  {favorites.length > 0 && (
+                    <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-bold min-w-[18px] text-center">
+                      {favorites.length}
+                    </span>
+                  )}
                 </Link>
               </motion.div>
               <div className="text-white relative z-50 flex-shrink-0">
@@ -238,7 +248,7 @@ export default function Home() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
-              className="relative w-32 h-32 md:w-36 md:h-36 mb-6 flex items-center justify-center bg-white rounded-full shadow-[0_0_50px_rgba(212,175,55,0.6)] ring-4 ring-[#D4AF37]/50 overflow-hidden hover:scale-105 hover:shadow-[0_0_60px_rgba(212,175,55,0.8)] transition-all duration-300"
+              className="relative w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 mb-4 md:mb-6 flex items-center justify-center bg-white rounded-full shadow-[0_0_50px_rgba(212,175,55,0.6)] ring-4 ring-[#D4AF37]/50 overflow-hidden hover:scale-105 hover:shadow-[0_0_60px_rgba(212,175,55,0.8)] transition-all duration-300"
             >
               <SafeImage 
                 src="https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg"
@@ -252,7 +262,7 @@ export default function Home() {
             <motion.h1 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFFDF6] via-[#FCECB8] to-[#E2BD55] mb-4 drop-shadow-sm leading-tight text-center font-khmer pb-1 pt-3 pr-4 ml-0 h-[141px] w-full max-w-[615px] flex items-center justify-center"
+              className="text-2xl sm:text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFFDF6] via-[#FCECB8] to-[#E2BD55] mb-3 md:mb-4 drop-shadow-sm leading-tight text-center font-khmer px-2 py-1 w-full max-w-[615px] flex items-center justify-center break-words-khmer"
             >
               កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ
             </motion.h1>
@@ -265,38 +275,38 @@ export default function Home() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
-              className="mt-2 flex flex-col items-center gap-4 px-4"
+              className="mt-2 flex flex-col items-center gap-4 px-2 sm:px-4 w-full"
             >
-              <div className="relative p-[1.5px] rounded-2xl overflow-hidden mx-auto md:w-auto w-full max-w-3xl group shadow-2xl">
+              <div className="relative p-[1.5px] rounded-2xl overflow-hidden mx-auto w-full max-w-3xl group shadow-2xl">
                 {/* Rotating Conic Gradients for the border */}
                 <div className="absolute inset-[-1000%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#E2BD55_0%,transparent_10%,transparent_100%)]" />
                 <div className="absolute inset-[-1000%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_270deg_at_50%_50%,#E2BD55_0%,transparent_10%,transparent_100%)]" />
                 
-                <div className="relative bg-gradient-to-r from-[#094C72]/90 to-[#052c42]/90 backdrop-blur-xl border-white/5 rounded-[15px] p-1.5 flex flex-col md:flex-row items-center w-full h-full">
+                <div className="relative bg-gradient-to-r from-[#094C72]/90 to-[#052c42]/90 backdrop-blur-xl border-white/5 rounded-[15px] p-2 sm:p-2.5 flex flex-col md:flex-row items-center w-full h-full gap-2 md:gap-0">
                 {/* Total Data Section */}
-                <div className="flex items-center justify-center gap-3 px-4 py-2 w-full md:w-auto">
-                  <div className="flex flex-col items-center">
-                    <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#FCECB8]/70 mb-0.5">ទិន្នន័យសរុប</span>
-                    <span className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FFFDF6] to-[#E2BD55] font-khmer">
+                <div className="flex items-center justify-center gap-2 sm:gap-3 px-2 sm:px-4 py-1 sm:py-2 w-full md:w-auto">
+                  <div className="flex flex-col items-center shrink-0">
+                    <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.15em] text-[#FCECB8]/70 mb-0.5">ទិន្នន័យសរុប</span>
+                    <span className="text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FFFDF6] to-[#E2BD55] font-khmer leading-none">
                       {totalKhmerDigits}
                     </span>
                   </div>
-                  <div className="w-px h-8 bg-white/20" />
-                  <div className="flex flex-col items-start bg-transparent">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider whitespace-nowrap">វិញ្ញាសាដែលបានបញ្ចូល</span>
-                    <span className="text-[11px] text-[#FCECB8] font-medium whitespace-nowrap">ក្នុងប្រព័ន្ធសិក្សាផ្លូវការ</span>
+                  <div className="w-px h-7 sm:h-8 bg-white/20 shrink-0" />
+                  <div className="flex flex-col items-start bg-transparent min-w-0">
+                    <span className="text-[9px] sm:text-[10px] font-bold text-slate-300 uppercase tracking-wider truncate">វិញ្ញាសាដែលបានបញ្ចូល</span>
+                    <span className="text-[10px] sm:text-[11px] text-[#FCECB8] font-medium truncate">ក្នុងប្រព័ន្ធសិក្សាផ្លូវការ</span>
                   </div>
-                  <div className="hidden md:block w-px h-10 bg-white/20 ml-2" />
+                  <div className="hidden md:block w-px h-10 bg-white/20 ml-2 shrink-0" />
                 </div>
 
                 {/* Main Tabs (only if logged in) */}
                 {user && (
-                  <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+                  <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto mt-1 md:mt-0">
                     <div className="flex gap-1 w-full md:w-[320px]">
                       <button
                         type="button"
                         onClick={() => setMainTab('INSTITUTION')}
-                        className={`flex-1 px-4 py-2.5 text-center rounded-xl text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
+                        className={`flex-1 px-2.5 sm:px-4 py-2 sm:py-2.5 text-center rounded-xl text-xs sm:text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
                           mainTab === 'INSTITUTION'
                             ? 'bg-[#E2BD55] text-[#094C72] shadow-md'
                             : 'text-white hover:text-[#E2BD55] hover:bg-white/10'
@@ -307,7 +317,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setMainTab('SUBJECT')}
-                        className={`flex-1 px-4 py-2.5 text-center rounded-xl text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
+                        className={`flex-1 px-2.5 sm:px-4 py-2 sm:py-2.5 text-center rounded-xl text-xs sm:text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
                           mainTab === 'SUBJECT'
                             ? 'bg-[#E2BD55] text-[#094C72] shadow-md'
                             : 'text-white hover:text-[#E2BD55] hover:bg-white/10'
@@ -512,6 +522,56 @@ export default function Home() {
           </motion.div>
         ) : (
           <>
+            {/* Quick Resume Test Banner */}
+            {resumeSession && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 sm:mb-6 max-w-xl mx-auto bg-gradient-to-r from-[#094C72] via-[#0B547E] to-[#1565C0] text-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-amber-400/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 relative overflow-hidden"
+              >
+                <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 w-full sm:w-auto">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-300/30">
+                    <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30">
+                        បន្តធ្វើតេស្ត • RESUME
+                      </span>
+                      <span className="text-[11px] sm:text-xs text-blue-100 font-medium">
+                        សំណួរទី {(resumeSession.currentIdx || 0) + 1} នៃ {resumeSession.quizzes?.length || 0}
+                      </span>
+                    </div>
+                    <p className="font-bold text-xs sm:text-sm md:text-base text-white truncate mt-1 font-khmer">
+                      {resumeSession.ministryName || 'វិញ្ញាសាក្រសួង'} — {resumeSession.category}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                  <button
+                    onClick={() => {
+                      const tab = resumeSession.quizType === 'MULTIPLE_CHOICE' ? 'MCQ' : resumeSession.quizType === 'Q_AND_A' ? 'QA' : 'VOCABULARY';
+                      router.push(`/ministry/${resumeSession.ministryId}?tab=${tab}&resume=true&category=${encodeURIComponent(resumeSession.category)}`);
+                    }}
+                    className="flex-1 sm:flex-initial bg-gradient-to-r from-[#E2BD55] to-[#D4AF37] hover:from-[#d4af37] hover:to-[#c59d2a] text-[#094C72] font-black rounded-xl text-xs sm:text-sm px-3.5 sm:px-4 py-2 sm:py-2.5 shadow-md flex items-center justify-center gap-1.5 sm:gap-2 font-khmer cursor-pointer transition-all"
+                  >
+                    <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                    <span>បន្តធ្វើតេស្ត (Resume)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearLastActiveSession();
+                      setResumeSession(null);
+                    }}
+                    className="text-white/60 hover:text-white p-2 rounded-xl hover:bg-white/10 text-xs shrink-0 cursor-pointer"
+                    title="បិទ"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
             {/* Search Input Bar */}
             <div className="mb-4 max-w-xl mx-auto">
               <div className="relative flex items-center">

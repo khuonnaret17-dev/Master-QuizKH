@@ -1,4 +1,6 @@
 // html-to-image and html2canvas dynamically imported on demand to keep initial bundle ultra fast
+import { DEFAULT_PROGRAM_LOGO } from "./default-logo";
+export { DEFAULT_PROGRAM_LOGO };
 
 export interface QuizInput {
   question: string;
@@ -8,6 +10,7 @@ export interface QuizInput {
   correctAnswer?: string;
   answer?: string;
   explanation?: string;
+  itemNumber?: number;
 }
 
 export interface MinistryInput {
@@ -15,6 +18,11 @@ export interface MinistryInput {
   name?: string;
   logo?: string;
 }
+
+export type TextAlignment = 'left' | 'center' | 'right' | 'justify';
+export type VerticalPosition = 'top' | 'center' | 'bottom';
+export type OptionsAlignment = 'left' | 'center' | 'right';
+export type QuestionFontSize = 'small' | 'medium' | 'large';
 
 export interface PosterConfig {
   layout?: 'MODERN_DARK' | 'EDITORIAL_LIGHT' | 'ROYAL_GOLD';
@@ -26,57 +34,100 @@ export interface PosterConfig {
   customCategory?: string;
   programLogo?: string;
   includeProgramLogo?: boolean;
+  itemNumber?: number;
+  textAlign?: TextAlignment;
+  verticalAlign?: VerticalPosition;
+  optionsAlign?: OptionsAlignment;
+  questionFontSize?: QuestionFontSize;
+}
+
+/**
+ * Strips any leading question numbering (e.g. "សំណួរទី ១៖", "សំណួរទី 1:", "1. ", "១. ", "សំណួរទី 12 :", "សំណួរ៖ ")
+ * to keep only the pure question text as requested by the user.
+ */
+export function cleanQuestionText(text?: string): string {
+  if (!text) return "";
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^សំណួរ\s*ទី?\s*[0-9០-៩IVXivx#]+\s*[:៖\-.\)]\s*/i, '');
+  cleaned = cleaned.replace(/^សំណួរ\s*ទី?\s*[0-9០-៩IVXivx#]+\s+/i, '');
+  cleaned = cleaned.replace(/^#?\s*[0-9០-៩IVXivx]+[\.\)\-\:៖]\s*/i, '');
+  cleaned = cleaned.replace(/^សំណួរ\s*[:៖]\s*/i, '');
+  cleaned = cleaned.replace(/^[0-9០-៩]+\s*[\-\–\.\)]\s*/i, '');
+  return cleaned.trim();
 }
 
 export async function imageUrlToDataUrl(url: string): Promise<string> {
-  const FALLBACK_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23D4AF37"/><text x="50" y="62" font-size="42" text-anchor="middle" fill="%23031F33" font-family="sans-serif" font-weight="bold">V</text></svg>`;
-  
-  if (!url) return FALLBACK_LOGO_SVG;
+  if (!url) return DEFAULT_PROGRAM_LOGO;
   if (url.startsWith("data:")) return url;
+  if (url === "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg" || url === "/app-logo.jpg") {
+    return DEFAULT_PROGRAM_LOGO;
+  }
 
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error("Fetch failed");
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string' && reader.result.length > 100) {
-          resolve(reader.result);
-        } else {
-          resolve(FALLBACK_LOGO_SVG);
+  // Try direct fetch or via image proxy
+  const urlsToTry = [
+    url,
+    `/api/image-proxy?url=${encodeURIComponent(url)}`
+  ];
+
+  for (const fetchUrl of urlsToTry) {
+    try {
+      const res = await fetch(fetchUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size > 200) {
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              if (typeof reader.result === 'string' && reader.result.length > 200) {
+                resolve(reader.result);
+              } else {
+                resolve('');
+              }
+            };
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(blob);
+          });
+          if (dataUrl) return dataUrl;
         }
-      };
-      reader.onerror = () => resolve(FALLBACK_LOGO_SVG);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return new Promise((resolve) => {
+      }
+    } catch {
+      // try next
+    }
+  }
+
+  // Fallback to Image() crossOrigin canvas
+  try {
+    const dataUrl = await new Promise<string>((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
-          canvas.width = img.width || 100;
-          canvas.height = img.height || 100;
+          canvas.width = img.naturalWidth || img.width || 120;
+          canvas.height = img.naturalHeight || img.height || 120;
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.drawImage(img, 0, 0);
-            const dataUrl = canvas.toDataURL("image/png");
-            if (dataUrl && dataUrl.length > 100) {
-              resolve(dataUrl);
+            const dUrl = canvas.toDataURL("image/png");
+            if (dUrl && dUrl.length > 200) {
+              resolve(dUrl);
               return;
             }
           }
         } catch {
-          // ignore tainted canvas
+          // ignore
         }
-        resolve(FALLBACK_LOGO_SVG);
+        resolve('');
       };
-      img.onerror = () => resolve(FALLBACK_LOGO_SVG);
+      img.onerror = () => resolve('');
       img.src = url;
     });
+    if (dataUrl) return dataUrl;
+  } catch {
+    // ignore
   }
+
+  return DEFAULT_PROGRAM_LOGO;
 }
 
 /**
@@ -90,7 +141,8 @@ export async function generateQuizImageBlob(
 ): Promise<Blob> {
   const defaultAppLogo = config?.programLogo?.trim() || "https://i.ibb.co/FkGwqJVL/3-QCM-Ep4-1.jpg";
   const rawMinistryLogo = ministry?.logo || defaultAppLogo;
-  const includeProgramLogo = config?.includeProgramLogo !== false;
+  // Always include the program logo with the image as requested by the user
+  const includeProgramLogo = true;
 
   // Convert logos to Data URLs to prevent CORS/tainted canvas errors in html-to-image / html2canvas
   const [appLogo, ministryLogo] = await Promise.all([
@@ -104,6 +156,19 @@ export async function generateQuizImageBlob(
   const footerBrand = config?.footerBrand?.trim() || "Master Quiz KH • វិញ្ញាសាផ្លូវការ";
   const footerTagline = config?.footerTagline?.trim() || "កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ និងស្ថាប័នសាធារណៈ";
   const footerHandle = config?.footerHandle?.trim() || "@qiuzs_bot";
+
+  const textAlign: TextAlignment = config?.textAlign || 'center';
+  const verticalAlign: VerticalPosition = config?.verticalAlign || 'top';
+  const optionsAlign: OptionsAlignment = config?.optionsAlign || 'left';
+  const questionFontSize: QuestionFontSize = config?.questionFontSize || 'medium';
+
+  const fontSizePx = questionFontSize === 'small' ? '17px' : questionFontSize === 'large' ? '22.5px' : '19.5px';
+  const lineHeightVal = questionFontSize === 'small' ? '1.75' : questionFontSize === 'large' ? '1.95' : '1.85';
+
+  const questionAlignCss = textAlign === 'justify' ? 'justify' : textAlign === 'right' ? 'right' : textAlign === 'left' ? 'left' : 'center';
+  const badgeAlignCss = textAlign === 'right' ? 'right' : textAlign === 'left' ? 'left' : 'center';
+  const optionJustifyCss = optionsAlign === 'center' ? 'center' : optionsAlign === 'right' ? 'flex-end' : 'flex-start';
+  const optionTextCss = optionsAlign === 'center' ? 'center' : optionsAlign === 'right' ? 'right' : 'left';
 
   const ministryName = ministry?.khmerName || ministry?.name || config?.customCategory || "វិញ្ញាសាទូទៅ";
   const categoryTag = config?.customCategory || (quiz.type === 'qa' ? "សំណួរ-ចម្លើយ" : "ពហុជ្រើសរើស (MCQ)");
@@ -193,7 +258,10 @@ export async function generateQuizImageBlob(
         border: 1px solid #BFDBFE;
       }
       .question-text {
-        color: #094C72;
+        font-family: 'Khmer OS Muol Light', 'Khmer OS Muol', 'Moul', serif, sans-serif !important;
+        color: #DC2626 !important;
+        text-align: ${questionAlignCss} !important;
+        text-align-last: ${questionAlignCss === 'justify' ? 'left' : questionAlignCss} !important;
         text-shadow: none;
       }
       .option-item {
@@ -271,8 +339,11 @@ export async function generateQuizImageBlob(
         border: 1px solid #D4AF37;
       }
       .question-text {
-        color: #FFFFFF;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        font-family: 'Khmer OS Muol Light', 'Khmer OS Muol', 'Moul', cursive, serif, sans-serif !important;
+        color: #DC2626 !important;
+        text-align: ${questionAlignCss} !important;
+        text-align-last: ${questionAlignCss === 'justify' ? 'left' : questionAlignCss} !important;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
       }
       .option-item {
         background: rgba(9, 55, 84, 0.45);
@@ -348,8 +419,11 @@ export async function generateQuizImageBlob(
         border: 1px solid rgba(226, 189, 85, 0.4);
       }
       .question-text {
-        color: #FFFFFF;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        font-family: 'Khmer OS Muol Light', 'Khmer OS Muol', 'Moul', cursive, serif, sans-serif !important;
+        color: #DC2626 !important;
+        text-align: ${questionAlignCss} !important;
+        text-align-last: ${questionAlignCss === 'justify' ? 'left' : questionAlignCss} !important;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
       }
       .option-item {
         background: rgba(255, 255, 255, 0.04);
@@ -404,6 +478,22 @@ export async function generateQuizImageBlob(
   // HTML and CSS Construction
   card.innerHTML = `
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Moul&family=Moulpali&display=swap');
+
+      @font-face {
+        font-family: 'Khmer OS Muol Light';
+        src: local('Khmer OS Muol Light'), local('Khmer OS Muol'), local('Moul'), url('https://fonts.gstatic.com/s/moul/v27/base.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: 'Khmer OS Muol';
+        src: local('Khmer OS Muol'), local('Khmer OS Muol Light'), local('Moul'), url('https://fonts.gstatic.com/s/moul/v27/base.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+      }
+
       .poster-card {
         font-family: system-ui, -apple-system, sans-serif, 'Khmer OS', 'Khmer OS System';
         border-radius: 28px;
@@ -455,6 +545,17 @@ export async function generateQuizImageBlob(
         padding: 32px 36px 36px 36px;
         position: relative;
         z-index: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: ${verticalAlign === 'center' ? 'center' : verticalAlign === 'bottom' ? 'flex-end' : 'flex-start'};
+        min-height: ${verticalAlign === 'top' ? 'auto' : '520px'};
+      }
+
+      .poster-content-area {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        ${verticalAlign === 'center' ? 'margin-top: auto; margin-bottom: auto;' : verticalAlign === 'bottom' ? 'margin-top: auto;' : ''}
       }
 
       .header {
@@ -537,11 +638,15 @@ export async function generateQuizImageBlob(
       }
       
       .question-text {
-        font-size: 18.5px;
-        font-weight: 700;
-        line-height: 1.7;
+        font-family: 'Khmer OS Muol Light', 'Khmer OS Muol', 'Moul', cursive, serif, sans-serif !important;
+        color: #DC2626 !important;
+        text-align: ${questionAlignCss} !important;
+        text-align-last: ${questionAlignCss === 'justify' ? 'left' : questionAlignCss} !important;
+        font-size: ${fontSizePx};
+        line-height: ${lineHeightVal};
         margin-bottom: 24px;
         white-space: pre-wrap;
+        word-break: break-word;
       }
       
       .options-grid {
@@ -555,6 +660,7 @@ export async function generateQuizImageBlob(
         padding: 14px 18px;
         display: flex;
         align-items: center;
+        justify-content: ${optionJustifyCss};
         gap: 14px;
         box-sizing: border-box;
       }
@@ -575,6 +681,7 @@ export async function generateQuizImageBlob(
         font-size: 14.5px;
         line-height: 1.55;
         flex: 1;
+        text-align: ${optionTextCss};
       }
 
       .answer-container {
@@ -689,56 +796,58 @@ export async function generateQuizImageBlob(
           </div>
         </div>
         
-        <div>
-          <span class="question-badge">${isMcq ? "សំណួរពហុជ្រើសរើស (MCQ)" : "សំណួរ-ចម្លើយខ្លី"}</span>
-          <div class="question-text">${escapeHTML(quiz.question)}</div>
-          
-          ${
-            isMcq
-              ? `
-            <div class="options-grid">
-              ${parsedOptions
-                .map(
-                  (opt) => `
-                <div class="option-item ${opt.isCorrect ? "option-item-correct" : ""}">
-                  <div class="option-circle ${opt.isCorrect ? "option-circle-correct" : ""}">
-                    ${opt.label}
+        <div class="poster-content-area">
+          <div style="text-align: ${badgeAlignCss}; margin-bottom: 14px;">
+            <span class="question-badge">${isMcq ? "សំណួរពហុជ្រើសរើស (MCQ)" : "សំណួរ-ចម្លើយខ្លី"}</span>
+          </div>
+          <div class="question-text">${escapeHTML(cleanQuestionText(quiz.question || ""))}</div>
+            
+            ${
+              isMcq
+                ? `
+              <div class="options-grid">
+                ${parsedOptions
+                  .map(
+                    (opt) => `
+                  <div class="option-item ${opt.isCorrect ? "option-item-correct" : ""}">
+                    <div class="option-circle ${opt.isCorrect ? "option-circle-correct" : ""}">
+                      ${opt.label}
+                    </div>
+                    <div class="option-text ${opt.isCorrect ? "option-text-correct" : ""}">
+                      ${escapeHTML(opt.text)}
+                    </div>
+                    ${opt.isCorrect ? `<span style="font-size: 13px;">✅</span>` : ''}
                   </div>
-                  <div class="option-text ${opt.isCorrect ? "option-text-correct" : ""}">
-                    ${escapeHTML(opt.text)}
-                  </div>
-                  ${opt.isCorrect ? `<span style="font-size: 13px;">✅</span>` : ''}
-                </div>
-              `
-                )
-                .join("")}
-            </div>
-          `
-              : showCorrectAnswer ? `
-            <div class="answer-container">
-              <div class="answer-label">ចម្លើយត្រឹមត្រូវ</div>
-              <div class="answer-text">${escapeHTML(quiz.answer) || "សូមពិនិត្យការពន្យល់លម្អិតខាងក្រោម"}</div>
-            </div>
-          ` : `
-            <div class="answer-challenge-box" style="margin-top: 16px; padding: 14px 18px; border-radius: 14px; border: 1.5px dashed rgba(226, 189, 85, 0.4); background: rgba(226, 189, 85, 0.06); display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 16px;">✍️</span>
-              <span style="font-size: 13px; font-weight: 700; opacity: 0.9;">សូមចូលរួមបញ្ចេញមតិ ឬពិនិត្យចម្លើយក្នុងសារអត្ថបទខាងក្រោម 👇</span>
-            </div>
-          `
-          }
-          
-          ${
-            showCorrectAnswer && showExplanation && quiz.explanation && quiz.explanation.trim() !== ""
-              ? `
-            <div class="explanation-container">
-              <div class="explanation-header">
-                <span>💡 ការពន្យល់ និងឯកសារយោង</span>
+                `
+                  )
+                  .join("")}
               </div>
-              <div class="explanation-body">${escapeHTML(quiz.explanation)}</div>
-            </div>
-          `
-              : ""
-          }
+            `
+                : showCorrectAnswer ? `
+              <div class="answer-container" style="text-align: ${textAlign === 'right' ? 'right' : 'left'};">
+                <div class="answer-label">ចម្លើយត្រឹមត្រូវ</div>
+                <div class="answer-text">${escapeHTML(quiz.answer) || "សូមពិនិត្យការពន្យល់លម្អិតខាងក្រោម"}</div>
+              </div>
+            ` : `
+              <div class="answer-challenge-box" style="margin-top: 16px; padding: 14px 18px; border-radius: 14px; border: 1.5px dashed rgba(226, 189, 85, 0.4); background: rgba(226, 189, 85, 0.06); display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 16px;">✍️</span>
+                <span style="font-size: 13px; font-weight: 700; opacity: 0.9;">សូមចូលរួមបញ្ចេញមតិ ឬពិនិត្យចម្លើយក្នុងសារអត្ថបទខាងក្រោម 👇</span>
+              </div>
+            `
+            }
+            
+            ${
+              showCorrectAnswer && showExplanation && quiz.explanation && quiz.explanation.trim() !== ""
+                ? `
+              <div class="explanation-container" style="text-align: ${textAlign === 'right' ? 'right' : 'left'};">
+                <div class="explanation-header" style="justify-content: ${textAlign === 'right' ? 'flex-end' : 'flex-start'};">
+                  <span>💡 ការពន្យល់ និងឯកសារយោង</span>
+                </div>
+                <div class="explanation-body">${escapeHTML(quiz.explanation)}</div>
+              </div>
+            `
+                : ""
+            }
         </div>
       </div>
       
@@ -865,24 +974,28 @@ export async function generateQuizImageBlob(
         ctx.fillText(ministryName, 60, 110);
 
         // Question
-        ctx.fillStyle = layout === 'EDITORIAL_LIGHT' ? "#0F172A" : "#FFFFFF";
-        ctx.font = "bold 36px sans-serif";
-        const text = String(quiz.question || "សំណួរវិញ្ញាសា");
+        ctx.fillStyle = "#DC2626";
+        const canvasFontSize = questionFontSize === 'small' ? '30px' : questionFontSize === 'large' ? '42px' : '36px';
+        ctx.font = `bold ${canvasFontSize} 'Khmer OS Muol Light', 'Khmer OS Muol', 'Moul', sans-serif`;
+        ctx.textAlign = textAlign === 'right' ? "right" : textAlign === 'center' ? "center" : "left";
+        const textX = textAlign === 'right' ? 1240 : textAlign === 'center' ? 660 : 80;
+        const text = cleanQuestionText(String(quiz.question || "សំណួរវិញ្ញាសា"));
         const words = text.split(' ');
         let line = "";
-        let testY = 220;
+        let testY = verticalAlign === 'center' ? 380 : verticalAlign === 'bottom' ? 520 : 220;
         for (let i = 0; i < words.length; i++) {
           const testLine = line + words[i] + " ";
           const metrics = ctx.measureText(testLine);
-          if (metrics.width > 1180 && i > 0) {
-            ctx.fillText(line, 60, testY);
+          if (metrics.width > 1160 && i > 0) {
+            ctx.fillText(line, textX, testY);
             line = words[i] + " ";
-            testY += 56;
+            testY += questionFontSize === 'small' ? 48 : questionFontSize === 'large' ? 64 : 56;
           } else {
             line = testLine;
           }
         }
-        ctx.fillText(line, 60, testY);
+        ctx.fillText(line, textX, testY);
+        ctx.textAlign = "left";
 
         // Footer brand
         ctx.fillStyle = layout === 'EDITORIAL_LIGHT' ? "#094C72" : "#FCECB8";

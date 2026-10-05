@@ -4,16 +4,18 @@ export const dynamic = 'force-dynamic';
 
 import { useParams, useSearchParams } from 'next/navigation';
 import { useFirebase } from '@/lib/FirebaseProvider';
-import { QuizType, PdfDocument } from '@/lib/types';
+import { QuizType, PdfDocument, QuizSession } from '@/lib/types';
+import { findMinistryUnfinishedSession, hasCategoryUnfinishedSession, clearSession } from '@/lib/quiz-session';
 import { firestoreService } from '@/lib/firestore-service';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Globe, BookOpen, HelpCircle, MessageSquare, ChevronRight, CheckCircle2, ChevronLeft, FileText, Crown, Download, Lock, Printer } from 'lucide-react';
+import { ArrowLeft, Globe, BookOpen, HelpCircle, MessageSquare, ChevronRight, CheckCircle2, ChevronLeft, FileText, Crown, Download, Lock, Printer, Play, PlayCircle, X, Heart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { QuizView } from '@/components/QuizView';
 import { WebDocumentView } from '@/components/WebDocumentView';
 import SafeImage from '@/components/SafeImage';
-import { imageUrlToDataUrl } from '@/lib/quiz-image-generator';
+import { imageUrlToDataUrl, DEFAULT_PROGRAM_LOGO } from '@/lib/quiz-image-generator';
 
 function MinistryDetailContent() {
   const params = useParams();
@@ -21,7 +23,7 @@ function MinistryDetailContent() {
   const searchParams = useSearchParams();
   const rawTab = searchParams?.get('tab');
   const initialTab = (['INFO', 'MCQ', 'QA', 'VOCABULARY', 'DOCUMENTS'].includes(rawTab || '') ? rawTab : 'INFO') as 'INFO' | 'MCQ' | 'QA' | 'VOCABULARY' | 'DOCUMENTS';
-  const { ministries, documents: allDocuments, loading, authLoading, user, saveProgress, isPremium, userRole } = useFirebase();
+  const { ministries, documents: allDocuments, loading, authLoading, user, saveProgress, isPremium, userRole, favorites, toggleFavorite } = useFirebase();
   const [activeTab, setActiveTab] = useState<'INFO' | 'MCQ' | 'QA' | 'VOCABULARY' | 'DOCUMENTS'>(initialTab);
   const [navigationPath, setNavigationPath] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -29,6 +31,27 @@ function MinistryDetailContent() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [pdfCategory, setPdfCategory] = useState<string | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [resumeDirectly, setResumeDirectly] = useState(false);
+  const [unfinishedSession, setUnfinishedSession] = useState<QuizSession | null>(null);
+
+  // Check URL search parameters for direct resume
+  useEffect(() => {
+    if (!searchParams) return;
+    const resumeParam = searchParams.get('resume') === 'true';
+    const catParam = searchParams.get('category');
+    if (resumeParam && catParam) {
+      setSelectedCategory(decodeURIComponent(catParam));
+      setResumeDirectly(true);
+    }
+  }, [searchParams]);
+
+  // Check for unfinished quiz sessions in this ministry and active tab
+  useEffect(() => {
+    if (!id) return;
+    const type: QuizType = activeTab === 'MCQ' ? 'MULTIPLE_CHOICE' : activeTab === 'QA' ? 'Q_AND_A' : 'VOCABULARY';
+    const session = findMinistryUnfinishedSession(id, type);
+    setUnfinishedSession(session);
+  }, [id, activeTab, selectedCategory]);
 
   const handlePrintPdf = (categoryPath: string | null = null) => {
     if (userRole !== 'ADMIN') return;
@@ -51,10 +74,12 @@ function MinistryDetailContent() {
     try {
       if (ministry.logo) {
         const dUrl = await imageUrlToDataUrl(ministry.logo);
-        setLogoDataUrl(dUrl);
+        setLogoDataUrl(dUrl || DEFAULT_PROGRAM_LOGO);
+      } else {
+        setLogoDataUrl(DEFAULT_PROGRAM_LOGO);
       }
     } catch {
-      // fallback to regular logo
+      setLogoDataUrl(DEFAULT_PROGRAM_LOGO);
     }
 
     // Give React time to re-render the template with the chosen category & converted logo
@@ -80,34 +105,59 @@ function MinistryDetailContent() {
         const element = document.getElementById('pdf-print-template');
         if (!element) throw new Error("Template not found");
 
-        // High-fidelity multi-stage canvas rendering at 3x scale (~300 DPI publication quality)
-        let fullCanvas: HTMLCanvasElement;
-        const { default: html2canvas } = await import('html2canvas');
+        // Wait for any images inside the template to load before taking the snapshot
+        const imgs = Array.from(element.querySelectorAll<HTMLImageElement>('img'));
+        await Promise.all(
+          imgs.map((img) => {
+            if (img.complete) return Promise.resolve();
+            return new Promise<void>((resolve) => {
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            });
+          })
+        );
 
+        // High-fidelity multi-stage canvas rendering
+        let fullCanvas: HTMLCanvasElement | null = null;
+
+        // Try html2canvas first
         try {
+          const { default: html2canvas } = await import('html2canvas');
           fullCanvas = await html2canvas(element, {
-            scale: 3, // 300+ DPI high resolution
+            scale: 2.5, // 250+ DPI publication quality
             useCORS: true,
-            allowTaint: true,
+            allowTaint: false,
             backgroundColor: '#ffffff',
             logging: false,
             windowWidth: 794,
             width: 794,
           });
         } catch (h2cError) {
-          console.warn("html2canvas fallback to html-to-image:", h2cError);
-          const { toCanvas } = await import('html-to-image');
-          fullCanvas = await toCanvas(element, {
-            pixelRatio: 3,
-            backgroundColor: '#ffffff',
-            cacheBust: true,
-            skipFonts: false,
-          });
+          console.warn("html2canvas error, falling back to html-to-image:", h2cError);
+        }
+
+        // Fallback to html-to-image with skipFonts: true to prevent "Cannot read properties of undefined (reading 'split')"
+        if (!fullCanvas || fullCanvas.width === 0 || fullCanvas.height === 0) {
+          try {
+            const { toCanvas } = await import('html-to-image');
+            fullCanvas = await toCanvas(element, {
+              pixelRatio: 2.5,
+              backgroundColor: '#ffffff',
+              cacheBust: true,
+              skipFonts: true, // CRITICAL: prevents html-to-image getUsedFonts from crashing with "Cannot read properties of undefined (reading 'split')"
+            });
+          } catch (h2iError) {
+            console.error("html-to-image fallback failed as well:", h2iError);
+          }
+        }
+
+        if (!fullCanvas || fullCanvas.width === 0 || fullCanvas.height === 0) {
+          throw new Error("Could not create canvas from printable template");
         }
 
         const elementWidth = element.offsetWidth || 794;
-        const totalHeight = element.offsetHeight;
-        const scale = fullCanvas.width / elementWidth; // 3x scale factor
+        const totalHeight = element.offsetHeight || Math.round(fullCanvas.height / (fullCanvas.width / elementWidth));
+        const scale = fullCanvas.width / elementWidth;
 
         // Standard A4 dimensions at 794px width (210mm x 297mm ratio ≈ 1.4142): 1123px height
         const A4_HEIGHT_PX = 1123;
@@ -175,10 +225,13 @@ function MinistryDetailContent() {
           compress: true
         });
 
+        const ministryName = (ministry.khmerName || ministry.name || 'ក្រសួង').trim();
+
         for (let p = 0; p < totalPages; p++) {
           const sliceTop = cuts[p];
           const sliceBottom = cuts[p + 1];
           const sliceHeight = sliceBottom - sliceTop;
+          if (sliceHeight <= 0) continue;
 
           const pageCanvas = document.createElement('canvas');
           pageCanvas.width = targetPageWidth;
@@ -214,7 +267,7 @@ function MinistryDetailContent() {
             ctx.font = `600 ${Math.round(9 * scale)}px 'Kantumruy Pro', 'Battambang', sans-serif`;
             ctx.textAlign = 'left';
             ctx.fillText(
-              `${ministry.khmerName} • កម្រងវិញ្ញាសាត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ`,
+              `${ministryName} • កម្រងវិញ្ញាសាត្រៀមប្រឡងក្របខ័ណ្ឌរដ្ឋ`,
               Math.round(48 * scale),
               headerY
             );
@@ -257,25 +310,35 @@ function MinistryDetailContent() {
             pdf.addPage('a4', 'portrait');
           }
 
-          // Add canvas directly or use high quality JPEG/PNG to avoid V8 string limit
+          // Add canvas via JPEG data URL to avoid V8 string limit and canvas addImage quirks
           try {
-            pdf.addImage(pageCanvas, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-          } catch (canvasAddErr) {
-            console.warn("Direct canvas addImage fallback:", canvasAddErr);
             const jpegData = pageCanvas.toDataURL('image/jpeg', 0.95);
             pdf.addImage(jpegData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+          } catch (canvasAddErr) {
+            console.warn("Direct canvas addImage fallback:", canvasAddErr);
+            try {
+              pdf.addImage(pageCanvas, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+            } catch (pngErr) {
+              console.warn("PNG canvas fallback failed:", pngErr);
+            }
           }
         }
 
         const suffix = categoryPath ? `_${categoryPath.replace(/\s+/g, '_').replace(/[\/>]+/g, '-')}` : '';
-        pdf.save(`Vignasa_${ministry.khmerName.replace(/\s+/g, '_')}${suffix}.pdf`);
+        pdf.save(`Vignasa_${ministryName.replace(/\s+/g, '_')}${suffix}.pdf`);
       } catch (err) {
         console.error("PDF generation error:", err);
+        // Fallback to browser standard native window.print() if canvas PDF generation fails
+        try {
+          window.print();
+        } catch {
+          // ignore
+        }
       } finally {
         setIsDownloadingPdf(false);
         setPdfCategory(null);
       }
-    }, 350);
+    }, 450);
   };
 
   const ministry = ministries.find(m => m.id === id);
@@ -407,59 +470,61 @@ function MinistryDetailContent() {
   return (
     <div className="min-h-screen bg-transparent">
       {/* Hero Header */}
-      <div className="relative h-64 md:h-80 bg-slate-900 overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
+      <div className="relative min-h-[16rem] md:min-h-[20rem] h-auto bg-slate-900 overflow-hidden py-6 md:py-8">
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
           <SafeImage src={ministry.logo} alt="" fill className="object-cover blur-xl" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent pointer-events-none" />
         
-        <div className="relative max-w-5xl mx-auto h-full px-6 flex flex-col justify-end pb-8">
-          <Link 
-            href="/" 
-            className="absolute top-8 left-6 inline-flex items-center text-white/70 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Home
-          </Link>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 flex flex-col justify-between h-full">
+          <div className="mb-4 sm:mb-6">
+            <Link 
+              href="/" 
+              className="inline-flex items-center text-white/70 hover:text-white transition-colors text-xs sm:text-sm font-medium"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              ត្រឡប់ទៅទំព័រដើម
+            </Link>
+          </div>
           
           <motion.div 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row items-center md:items-end gap-6"
+            className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6"
           >
-            <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-3xl p-3 shadow-2xl flex-shrink-0 relative overflow-hidden">
-              <SafeImage src={ministry.logo} alt={ministry.name} fill className="object-contain p-2" />
+            <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-3 shadow-2xl flex-shrink-0 relative overflow-hidden">
+              <SafeImage src={ministry.logo} alt={ministry.name} fill className="object-contain p-1.5 sm:p-2" />
             </div>
-            <div className="flex-1 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-4">
-              <div>
-                <span className="inline-block px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-mono mb-2 backdrop-blur-sm border border-white/5">
+            <div className="flex-1 text-center sm:text-left flex flex-col md:flex-row md:items-end justify-between gap-4 w-full min-w-0">
+              <div className="min-w-0">
+                <span className="inline-block px-2.5 py-0.5 bg-white/10 text-white/80 rounded-full text-[10px] sm:text-xs font-mono mb-1.5 backdrop-blur-sm border border-white/5">
                   {ministry.id.toUpperCase()}
                 </span>
-                <h1 className="text-2xl md:text-4xl font-bold text-white mb-1 leading-tight">
+                <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-white mb-1 leading-tight break-words-khmer">
                   {ministry.khmerName}
                 </h1>
-                <p className="text-white/70 text-sm md:text-base font-medium">
+                <p className="text-white/70 text-xs sm:text-sm md:text-base font-medium truncate">
                   {ministry.name}
                 </p>
               </div>
               
               {userRole === 'ADMIN' && (
-                <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start md:justify-end gap-2 w-full md:w-auto shrink-0 pt-2 md:pt-0">
                   <button
                     onClick={() => handleDownloadPdf(null)}
                     disabled={isDownloadingPdf}
-                    className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl backdrop-blur-md border border-blue-400/30 transition-all shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 gap-2 cursor-pointer"
+                    className="inline-flex items-center justify-center px-3.5 py-2 sm:px-4 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl backdrop-blur-md border border-blue-400/30 transition-all shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 gap-1.5 sm:gap-2 cursor-pointer"
                     title="ទាញយកវិញ្ញាសាទាំងអស់ជាឯកសារ PDF កម្រិតច្បាស់ 300+ DPI"
                   >
                     {isDownloadingPdf && !pdfCategory ? (
                       <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>កំពុងទាញយក PDF កម្រិតច្បាស់...</span>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>កំពុងទាញយក PDF...</span>
                       </>
                     ) : (
                       <>
-                        <Download className="w-4 h-4" />
-                        <span>ទាញយក PDF (កម្រិតច្បាស់ 300 DPI)</span>
+                        <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span>ទាញយក PDF (300 DPI)</span>
                       </>
                     )}
                   </button>
@@ -467,11 +532,11 @@ function MinistryDetailContent() {
                   <button
                     onClick={() => handlePrintPdf(null)}
                     disabled={isDownloadingPdf}
-                    className="inline-flex items-center justify-center px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-bold rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-md disabled:opacity-50 gap-1.5 cursor-pointer"
+                    className="inline-flex items-center justify-center px-3 py-2 sm:px-3.5 sm:py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-bold rounded-xl backdrop-blur-md border border-white/20 transition-all shadow-md disabled:opacity-50 gap-1.5 cursor-pointer"
                     title="បោះពុម្ព ឬរក្សាទុកជា PDF តាម Browser (Vector ច្បាស់ 100%)"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span>បោះពុម្ព / សន្សំជា PDF</span>
+                    <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>បោះពុម្ព / PDF</span>
                   </button>
                 </div>
               )}
@@ -524,8 +589,8 @@ function MinistryDetailContent() {
         <>
           {/* Tabs */}
           <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
-            <div className="max-w-5xl mx-auto px-6">
-              <div className="flex gap-8 overflow-x-auto no-scrollbar">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6">
+              <div className="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar py-0.5">
                 {(
                   [
                     { id: 'INFO', label: 'ព័ត៌មានទូទៅ', icon: BookOpen },
@@ -542,9 +607,9 @@ function MinistryDetailContent() {
                       setSelectedCategory(null);
                       setNavigationPath([]);
                     }}
-                    className={`py-4 flex items-center gap-2 border-b-2 transition-all whitespace-nowrap font-medium text-sm ${
+                    className={`py-3.5 sm:py-4 flex items-center gap-1.5 sm:gap-2 border-b-2 transition-all whitespace-nowrap font-medium text-xs sm:text-sm shrink-0 ${
                       activeTab === tab.id 
-                        ? 'border-blue-600 text-blue-600' 
+                        ? 'border-blue-600 text-blue-600 font-bold' 
                         : 'border-transparent text-slate-500 hover:text-slate-800'
                     }`}
                   >
@@ -557,7 +622,7 @@ function MinistryDetailContent() {
           </div>
 
           {/* Content */}
-          <main className="max-w-5xl mx-auto px-6 py-8" style={{ backgroundColor: '#d4cda8' }}>
+          <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 overflow-x-hidden" style={{ backgroundColor: '#d4cda8' }}>
             <AnimatePresence initial={false}>
               {!isPremium && ['MCQ', 'QA', 'VOCABULARY'].includes(activeTab) ? (
                 <motion.div
@@ -596,9 +661,11 @@ function MinistryDetailContent() {
                     ministry={ministry}
                     category={selectedCategory}
                     quizType={currentType}
+                    initialResume={resumeDirectly}
                     onBack={() => {
                        setSelectedCategory(null);
                        setNavigationPath([]);
+                       setResumeDirectly(false);
                     }}
                     onComplete={handleComplete}
                   />
@@ -644,6 +711,56 @@ function MinistryDetailContent() {
                   transition={{ duration: 0.15 }}
                   className="space-y-6"
                 >
+                  {/* Resume Test Banner for this Ministry */}
+                  {unfinishedSession && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gradient-to-r from-[#094C72] via-[#0D5C8A] to-[#1565C0] text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-amber-400/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-300/30">
+                          <PlayCircle className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-2.5 py-0.5 rounded-full border border-amber-400/30">
+                              បន្តធ្វើតេស្ត • RESUME TEST
+                            </span>
+                            <span className="text-xs text-blue-100 font-medium">
+                              សំណួរទី {(unfinishedSession.currentIdx || 0) + 1} នៃ {unfinishedSession.quizzes?.length || 0}
+                            </span>
+                          </div>
+                          <p className="font-bold text-sm sm:text-base text-white truncate mt-1 font-khmer">
+                            {unfinishedSession.category}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <Button 
+                          onClick={() => {
+                            setSelectedCategory(unfinishedSession.category);
+                            setResumeDirectly(true);
+                          }}
+                          className="w-full sm:w-auto bg-gradient-to-r from-[#E2BD55] to-[#D4AF37] hover:from-[#d4af37] hover:to-[#c59d2a] text-[#094C72] font-black rounded-xl text-xs sm:text-sm px-4 py-2.5 shadow-md flex items-center justify-center gap-2 font-khmer"
+                        >
+                          <Play className="w-4 h-4 fill-current" />
+                          <span>បន្តធ្វើតេស្ត (Resume)</span>
+                        </Button>
+                        <button 
+                          onClick={() => {
+                            clearSession(unfinishedSession.ministryId, unfinishedSession.quizType, unfinishedSession.category);
+                            setUnfinishedSession(null);
+                          }}
+                          className="text-white/60 hover:text-white p-2 rounded-xl hover:bg-white/10 text-xs shrink-0"
+                          title="លុបចោលការរក្សាទុក"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="text-xl font-bold text-slate-900">
                         {navigationPath.length > 0 ? navigationPath[navigationPath.length - 1] : 'ជ្រើសរើសវិញ្ញាសា'}
@@ -659,61 +776,93 @@ function MinistryDetailContent() {
                     <div className="space-y-4">
                       {Object.keys(currentNode.children).sort().map((part) => {
                         const node = currentNode.children[part];
+                        const isNodeUnfinished = node.isLeaf && node.fullPath && hasCategoryUnfinishedSession(ministry.id, currentType, node.fullPath);
                         
                         return (
-                          <div key={part} className="group bg-white p-4 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+                          <div key={part} className="group bg-white p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full overflow-hidden">
                             <button
                               onClick={() => {
                                   if (node.isLeaf) {
                                       setSelectedCategory(node.fullPath);
+                                      if (isNodeUnfinished) {
+                                        setResumeDirectly(true);
+                                      }
                                   } else {
                                       setNavigationPath([...navigationPath, part]);
                                   }
                               }}
-                              className="flex-1 text-left flex items-center gap-4 w-full"
+                              className="flex-1 text-left flex items-center gap-3 sm:gap-4 w-full min-w-0"
                             >
-                              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                                <CheckCircle2 className="w-5 h-5" />
+                              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 text-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
-                              <div className="flex-1">
-                                  <h3 className="text-lg font-bold text-slate-900 font-serif group-hover:text-blue-600 transition-colors">
-                                  {part}
-                                  </h3>
+                              <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 font-serif group-hover:text-blue-600 transition-colors truncate">
+                                      {part}
+                                    </h3>
+                                    {isNodeUnfinished && (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-bold font-khmer shadow-2xs">
+                                        <Play className="w-2.5 h-2.5 fill-current text-amber-600" />
+                                        បន្តធ្វើតេស្ត
+                                      </span>
+                                    )}
+                                  </div>
                               </div>
-                              <ChevronRight className="w-4 h-4 text-blue-400 group-hover:translate-x-1 transition-transform" />
+                              <ChevronRight className="w-4 h-4 text-blue-400 group-hover:translate-x-1 transition-transform shrink-0" />
                             </button>
                             
-                            {userRole === 'ADMIN' && (
-                              <div className="flex items-center gap-1.5 w-full sm:w-auto mt-2 sm:mt-0">
+                            <div className="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0 justify-end shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-50">
+                              {node.isLeaf && node.fullPath && (
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDownloadPdf(node.fullPath);
+                                    toggleFavorite(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`);
                                   }}
-                                  disabled={isDownloadingPdf}
-                                  className="inline-flex items-center justify-center px-3 py-1.5 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 border border-slate-200 hover:border-blue-200 gap-1 cursor-pointer"
-                                  title="ទាញយកវិញ្ញាសាផ្នែកនេះជា PDF កម្រិតច្បាស់ 300 DPI"
+                                  className={`p-1.5 sm:p-2 rounded-xl transition-all border shrink-0 cursor-pointer ${
+                                    favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`)
+                                      ? 'bg-rose-50 border-rose-200 text-rose-500'
+                                      : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-rose-500 hover:bg-white'
+                                  }`}
+                                  title={favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`) ? 'ដកមេរៀនពីបញ្ជីចូលចិត្ត' : 'រក្សាទុកមេរៀនក្នុងបញ្ជីចូលចិត្ត'}
                                 >
-                                  {isDownloadingPdf && pdfCategory === node.fullPath ? (
-                                    <span className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <Download className="w-3.5 h-3.5" />
-                                  )}
-                                  <span>PDF ច្បាស់</span>
+                                  <Heart className={`w-3.5 h-3.5 ${favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(node.fullPath!)}`) ? 'fill-current text-rose-500' : ''}`} />
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePrintPdf(node.fullPath);
-                                  }}
-                                  disabled={isDownloadingPdf}
-                                  className="inline-flex items-center justify-center p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 border border-slate-200 cursor-pointer"
-                                  title="បោះពុម្ពផ្នែកនេះ ឬរក្សាទុកជា PDF"
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
+                              )}
+
+                              {userRole === 'ADMIN' && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadPdf(node.fullPath);
+                                    }}
+                                    disabled={isDownloadingPdf}
+                                    className="inline-flex items-center justify-center px-3 py-1.5 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 border border-slate-200 hover:border-blue-200 gap-1 cursor-pointer"
+                                    title="ទាញយកវិញ្ញាសាផ្នែកនេះជា PDF កម្រិតច្បាស់ 300 DPI"
+                                  >
+                                    {isDownloadingPdf && pdfCategory === node.fullPath ? (
+                                      <span className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Download className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>PDF ច្បាស់</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrintPdf(node.fullPath);
+                                    }}
+                                    disabled={isDownloadingPdf}
+                                    className="inline-flex items-center justify-center p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 border border-slate-200 cursor-pointer"
+                                    title="បោះពុម្ពផ្នែកនេះ ឬរក្សាទុកជា PDF"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -734,10 +883,24 @@ function MinistryDetailContent() {
         </>
       )}
 
+      {/* PDF Generation Loading Modal Overlay */}
+      {isDownloadingPdf && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100000] flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4 max-w-sm text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div>
+              <h4 className="font-bold text-base text-slate-900">កំពុងបង្កើតឯកសារ PDF...</h4>
+              <p className="text-xs text-slate-500 mt-1">សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទំព័រវិញ្ញាសាគុណភាពខ្ពស់</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Ultra-Clear Printable Template for High-Res 300 DPI PDF & Vector Print */}
       {ministry && ministry.quizzes && (
         <div 
           id="pdf-print-template-wrapper"
+          aria-hidden="true"
           style={{ 
             position: "fixed", 
             top: 0, 
@@ -745,9 +908,9 @@ function MinistryDetailContent() {
             width: "794px", 
             opacity: isDownloadingPdf ? 0.999 : 0, 
             pointerEvents: "none", 
-            zIndex: isDownloadingPdf ? -1 : -9999, 
+            zIndex: -9999, 
             backgroundColor: "#ffffff",
-            transform: isDownloadingPdf ? "none" : "translateY(-100%)",
+            transform: isDownloadingPdf ? "none" : "translateY(-10000px)",
             visibility: isDownloadingPdf ? "visible" : "hidden"
           }}
         >
@@ -780,12 +943,11 @@ function MinistryDetailContent() {
             {/* Ministry Specific Information Section */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #094C72", paddingBottom: "16px", marginBottom: "20px", gap: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                {(logoDataUrl || ministry.logo) && (
+                {(logoDataUrl || ministry.logo || DEFAULT_PROGRAM_LOGO) && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img 
-                    src={logoDataUrl || ministry.logo} 
+                    src={logoDataUrl || DEFAULT_PROGRAM_LOGO} 
                     alt="" 
-                    crossOrigin="anonymous"
                     style={{ 
                       width: "56px", 
                       height: "56px", 

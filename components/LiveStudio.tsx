@@ -1454,42 +1454,42 @@ export function LiveStudio() {
           </div>
 
           {/* Layout Mode Selector Bar */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-khmer text-slate-400 font-bold px-2">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-khmer text-slate-400 font-bold px-1 sm:px-2">
               ទម្រង់ប្លង់ផ្សាយ (Layout):
             </span>
-            <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 w-full sm:w-auto">
               <button
                 onClick={() => setLayoutMode('QUIZ')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer text-center ${
                   layoutMode === 'QUIZ' ? 'bg-[#D4AF37] text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> បង្ហាញវិញ្ញាសា</span>
+                <span className="flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap"><BookOpen className="w-3.5 h-3.5" /> បង្ហាញវិញ្ញាសា</span>
               </button>
               <button
                 onClick={() => setLayoutMode('STUDIO')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer text-center ${
                   layoutMode === 'STUDIO' ? 'bg-[#094C72] text-white shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Studio (PiP)</span>
+                <span className="flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap"><Layers className="w-3.5 h-3.5" /> Studio</span>
               </button>
               <button
                 onClick={() => setLayoutMode('SCREEN')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer text-center ${
                   layoutMode === 'SCREEN' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="flex items-center gap-1.5"><Monitor className="w-3.5 h-3.5" /> អេក្រង់ពេញ</span>
+                <span className="flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap"><Monitor className="w-3.5 h-3.5" /> អេក្រង់</span>
               </button>
               <button
                 onClick={() => setLayoutMode('CAMERA')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-khmer font-bold transition-all cursor-pointer text-center ${
                   layoutMode === 'CAMERA' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span className="flex items-center gap-1.5"><Video className="w-3.5 h-3.5" /> កាមេរ៉ាពេញ</span>
+                <span className="flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap"><Video className="w-3.5 h-3.5" /> កាមេរ៉ា</span>
               </button>
             </div>
           </div>

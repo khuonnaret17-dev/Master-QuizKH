@@ -180,7 +180,7 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
   }, [filteredAttempts]);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-6 shadow-sm space-y-4 sm:space-y-6 overflow-hidden">
       {/* Component Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 pb-5">
         <div>
@@ -188,7 +188,7 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
             <Activity className="w-5 h-5 text-amber-500" />
             <span className="text-xs uppercase font-extrabold tracking-wider font-sans">Performance Over Time</span>
           </div>
-          <h2 className="text-xl font-black text-slate-900 font-khmer">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 font-khmer">
             និន្នាការនៃការវិវត្តន៍ពិន្ទុតាមពេលវេលា (Score Trends)
           </h2>
           <p className="text-xs text-slate-400 font-khmer mt-0.5">
@@ -197,13 +197,13 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
         </div>
 
         {/* Filter controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {/* Ministry Category Filter */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={selectedMinistry}
               onChange={(e) => setSelectedMinistry(e.target.value)}
-              className="appearance-none pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 font-khmer focus:outline-none focus:ring-2 focus:ring-[#094C72] cursor-pointer"
+              className="appearance-none pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 font-khmer focus:outline-none focus:ring-2 focus:ring-[#094C72] cursor-pointer w-full sm:w-auto max-w-full"
             >
               <option value="ALL">គ្រប់ក្រសួង/ស្ថាប័នទាំងអស់</option>
               {availableMinistries.map(m => (
@@ -214,10 +214,10 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
           </div>
 
           {/* Quiz Type Filter */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 w-full sm:w-auto justify-between sm:justify-start">
             <button
               onClick={() => setSelectedType('ALL')}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all font-khmer cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 py-1 text-xs font-bold rounded-lg transition-all font-khmer cursor-pointer text-center ${
                 selectedType === 'ALL'
                   ? 'bg-white text-[#094C72] shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -227,7 +227,7 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
             </button>
             <button
               onClick={() => setSelectedType('MCQ')}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all font-khmer cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 py-1 text-xs font-bold rounded-lg transition-all font-khmer cursor-pointer text-center ${
                 selectedType === 'MCQ'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -237,7 +237,7 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
             </button>
             <button
               onClick={() => setSelectedType('QA')}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all font-khmer cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 py-1 text-xs font-bold rounded-lg transition-all font-khmer cursor-pointer text-center ${
                 selectedType === 'QA'
                   ? 'bg-white text-amber-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -251,7 +251,7 @@ export function QuizPerformanceChart({ userProgress, ministries }: QuizPerforman
           {availableMinistries.length > 1 && (
             <button
               onClick={() => setViewMode(viewMode === 'OVERALL' ? 'BY_MINISTRY' : 'OVERALL')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold font-khmer transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold font-khmer transition-all cursor-pointer w-full sm:w-auto ${
                 viewMode === 'BY_MINISTRY'
                   ? 'bg-[#094C72] text-white border-[#094C72] shadow-sm'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'

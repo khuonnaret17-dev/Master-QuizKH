@@ -93,3 +93,19 @@ export interface Progress {
     type?: string;
   };
 }
+
+export interface QuizSession {
+  ministryId: string;
+  ministryName?: string;
+  category: string;
+  quizType: QuizType;
+  quizzes: Quiz[];
+  currentIdx: number;
+  answers: { [key: string]: string };
+  selectedOption?: string | null;
+  showExplanation?: boolean;
+  revealed?: boolean;
+  score?: number;
+  updatedAt: number;
+  isFinished?: boolean;
+}

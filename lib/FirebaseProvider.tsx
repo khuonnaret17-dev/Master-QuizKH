@@ -357,14 +357,29 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
     if (!userId) return;
 
+    // Load from local cache immediately for zero latency
+    try {
+      const cached = localStorage.getItem(`vignasa_favorites_${userId}`);
+      if (cached) {
+        setFavorites(JSON.parse(cached));
+      }
+    } catch {
+      // ignore
+    }
+
     const favoritesQuery = query(
       collection(db, 'favorites'), 
       where('userId', '==', userId)
     );
 
     const unsubscribe = onSnapshot(favoritesQuery, (snapshot) => {
-      const favoritesList = snapshot.docs.map(doc => doc.data().itemId);
+      const favoritesList = snapshot.docs.map(doc => doc.data().itemId).filter(Boolean);
       setFavorites(favoritesList);
+      try {
+        localStorage.setItem(`vignasa_favorites_${userId}`, JSON.stringify(favoritesList));
+      } catch {
+        // ignore
+      }
     }, (error) => {
       console.error("Favorites real-time load error:", error);
     });
@@ -605,29 +620,40 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleFavorite = async (itemId: string) => {
-    if (!user) return;
+    if (!user || !itemId) return;
     
     const isFavorite = favorites.includes(itemId);
     const userId = user.uid.startsWith('custom_') 
-      ? user.displayName!.toLowerCase() 
+      ? (user as CustomUserSession).displayName?.toLowerCase() || user.uid
       : user.uid;
-    const docId = `${userId}_${itemId}`;
-    const favRef = doc(db, 'favorites', docId);
+    const safeDocId = `${userId}_${encodeURIComponent(itemId).replace(/[\/\.]/g, '_')}`;
+    const favRef = doc(db, 'favorites', safeDocId);
+
+    // Optimistic UI update
+    const updatedFavorites = isFavorite 
+      ? favorites.filter(id => id !== itemId)
+      : [...favorites, itemId];
+    setFavorites(updatedFavorites);
+    try {
+      localStorage.setItem(`vignasa_favorites_${userId}`, JSON.stringify(updatedFavorites));
+    } catch {
+      // ignore
+    }
 
     try {
       if (isFavorite) {
         await deleteDoc(favRef);
-        setFavorites(prev => prev.filter(id => id !== itemId));
       } else {
         await setDoc(favRef, { 
           userId, 
           itemId, 
           createdAt: serverTimestamp() 
-        });
-        setFavorites(prev => [...prev, itemId]);
+        }, { merge: true });
       }
     } catch (error) {
       console.error("Error toggling favorite:", error);
+      // Revert on error
+      setFavorites(favorites);
     }
   };
 

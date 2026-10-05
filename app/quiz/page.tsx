@@ -2,10 +2,10 @@
 
 
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirebase } from '@/lib/FirebaseProvider';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle, ArrowLeft, RotateCcw, Trophy, Brain, Heart } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, RotateCcw, Trophy, Brain, Heart, Play, PlayCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function QuizPage() {
@@ -16,6 +16,49 @@ export default function QuizPage() {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [quizSeed, setQuizSeed] = useState(0);
+  const [hasSavedProgress, setHasSavedProgress] = useState(false);
+
+  // Restore saved quick quiz if available
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('vignasa_quick_quiz_progress');
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && typeof data.step === 'number' && data.step > 0 && !data.finished) {
+          setHasSavedProgress(true);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const resumeSavedQuiz = () => {
+    try {
+      const raw = localStorage.getItem('vignasa_quick_quiz_progress');
+      if (raw) {
+        const data = JSON.parse(raw);
+        setCurrentStep(data.step || 0);
+        setScore(data.score || 0);
+        setQuizSeed(data.seed || 0);
+        setSelectedOption(null);
+        setIsAnswered(false);
+        setHasSavedProgress(false);
+      }
+    } catch {
+      setHasSavedProgress(false);
+    }
+  };
+
+  const discardSavedQuiz = () => {
+    try {
+      localStorage.removeItem('vignasa_quick_quiz_progress');
+    } catch {
+      // ignore
+    }
+    setHasSavedProgress(false);
+    resetQuiz();
+  };
 
   // Generate a quiz from ministries data - memoized so options don't reshuffle on answer selection
   const quizzes = useMemo(() => {
@@ -42,18 +85,45 @@ export default function QuizPage() {
     if (isAnswered) return;
     setSelectedOption(index);
     setIsAnswered(true);
+    const newScore = index === quizzes[currentStep]?.correctIndex ? score + 1 : score;
     if (index === quizzes[currentStep]?.correctIndex) {
-      setScore(score + 1);
+      setScore(newScore);
+    }
+    try {
+      localStorage.setItem('vignasa_quick_quiz_progress', JSON.stringify({
+        step: currentStep,
+        score: newScore,
+        seed: quizSeed,
+        finished: false
+      }));
+    } catch {
+      // ignore
     }
   };
 
   const nextQuestion = () => {
     if (currentStep < quizzes.length - 1) {
-      setCurrentStep(currentStep + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
       setSelectedOption(null);
       setIsAnswered(false);
+      try {
+        localStorage.setItem('vignasa_quick_quiz_progress', JSON.stringify({
+          step: nextStep,
+          score,
+          seed: quizSeed,
+          finished: false
+        }));
+      } catch {
+        // ignore
+      }
     } else {
       setShowResult(true);
+      try {
+        localStorage.removeItem('vignasa_quick_quiz_progress');
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -64,6 +134,11 @@ export default function QuizPage() {
     setSelectedOption(null);
     setIsAnswered(false);
     setQuizSeed(s => s + 1);
+    try {
+      localStorage.removeItem('vignasa_quick_quiz_progress');
+    } catch {
+      // ignore
+    }
   };
 
   const isBlocked = !user || (!isPremium && userRole !== 'ADMIN');
@@ -166,18 +241,55 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-6 md:p-12">
+    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-12 overflow-x-hidden">
       <div className="max-w-2xl mx-auto">
-        <header className="mb-12 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
+        <header className="mb-6 sm:mb-12 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors text-xs sm:text-sm">
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
             Home
           </Link>
-          <div className="bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-amber-500" />
-            <span className="font-bold text-slate-700">Score: {score}</span>
+          <div className="bg-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-1.5 sm:gap-2">
+            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
+            <span className="font-bold text-slate-700 text-xs sm:text-sm">Score: {score}</span>
           </div>
         </header>
+
+        {hasSavedProgress && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-[#094C72] to-[#1565C0] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg border border-amber-400/40"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                <PlayCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                  រកឃើញវិញ្ញាសាពីមុន • RESUME TEST
+                </p>
+                <p className="text-xs sm:text-sm font-medium text-white">
+                  តើអ្នកចង់បន្តធ្វើតេស្តដែលមិនទាន់ចប់ទេ?
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                onClick={resumeSavedQuiz}
+                className="flex-1 sm:flex-initial px-3.5 py-2 bg-gradient-to-r from-[#E2BD55] to-[#D4AF37] hover:from-[#d4af37] hover:to-[#c59d2a] text-[#094C72] font-black rounded-xl text-xs transition-colors font-khmer shadow-sm flex items-center justify-center gap-1"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>បន្តធ្វើតេស្ត (Resume)</span>
+              </button>
+              <button
+                onClick={discardSavedQuiz}
+                className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs transition-colors font-khmer"
+              >
+                ចាប់ផ្ដើមថ្មី
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <AnimatePresence mode="wait">
           {!showResult ? (
@@ -186,21 +298,21 @@ export default function QuizPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.05 }}
-              className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100"
+              className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl border border-slate-100 overflow-hidden"
             >
-              <div className="mb-8">
-                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-widest">
+              <div className="mb-6 sm:mb-8">
+                <span className="text-[10px] sm:text-xs font-bold text-blue-600 bg-blue-50 px-2.5 sm:px-3 py-1 rounded-full uppercase tracking-widest">
                   Question {currentStep + 1} of {quizzes.length}
                 </span>
-                <div className="flex justify-between items-start gap-4">
-                  <h2 className="text-2xl font-bold text-slate-900 mt-4 leading-tight">
+                <div className="flex justify-between items-start gap-3 sm:gap-4">
+                  <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mt-3 sm:mt-4 leading-tight break-words-khmer">
                     {quizzes[currentStep].question}
                   </h2>
                   <button 
                     onClick={() => toggleFavorite(quizzes[currentStep].ministryId)}
-                    className={`mt-4 p-2 rounded-full transition-colors ${favorites.includes(quizzes[currentStep].ministryId) ? 'text-red-500 bg-red-50' : 'text-slate-300 hover:text-red-400'}`}
+                    className={`mt-3 sm:mt-4 p-1.5 sm:p-2 rounded-full transition-colors shrink-0 ${favorites.includes(quizzes[currentStep].ministryId) ? 'text-red-500 bg-red-50' : 'text-slate-300 hover:text-red-400'}`}
                   >
-                    <Heart className={`w-6 h-6 ${favorites.includes(quizzes[currentStep].ministryId) ? 'fill-red-500' : ''}`} />
+                    <Heart className={`w-5 h-5 sm:w-6 sm:h-6 ${favorites.includes(quizzes[currentStep].ministryId) ? 'fill-red-500' : ''}`} />
                   </button>
                 </div>
               </div>

@@ -33,8 +33,9 @@ export default function SafeImage({ src, alt, fallback, className, ...props }: S
 
   // Handle Google Drive links specifically
   let displaySrc = src;
-  if (src.includes('drive.google.com') && src.includes('/file/d/')) {
-    const id = src?.split('/file/d/')[1]?.split('/')[0];
+  if (typeof src === 'string' && src.includes('drive.google.com') && src.includes('/file/d/')) {
+    const parts = src.split('/file/d/');
+    const id = parts[1] ? parts[1].split('/')[0] : null;
     if (id) {
       displaySrc = `https://drive.google.com/uc?id=${id}`;
     }
