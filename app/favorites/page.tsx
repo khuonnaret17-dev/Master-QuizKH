@@ -213,39 +213,39 @@ export default function FavoritesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-10 overflow-x-hidden">
-      <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
+    <main className="min-h-screen bg-slate-50 pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 overflow-x-hidden">
+      <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Top Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80">
-          <div className="flex items-center gap-3.5">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-white p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80">
+          <div className="flex items-center gap-4">
             <Link 
               href="/" 
-              className="p-2 sm:p-2.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-slate-100 transition-colors text-slate-600"
+              className="p-3 sm:p-3.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-slate-100 transition-colors text-slate-600 shadow-2xs cursor-pointer"
               title="ត្រឡប់ទៅទំព័រដើម"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-rose-50 rounded-xl text-rose-500">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-50 rounded-2xl text-rose-500 border border-rose-100">
                   <Heart className="w-5 h-5 fill-rose-500" />
                 </div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 font-khmer">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 font-khmer">
                   បញ្ជីចូលចិត្ត (Favorites)
                 </h1>
               </div>
-              <p className="text-xs text-slate-500 font-khmer mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-500 font-khmer mt-1">
                 សំណួរ មេរៀន និងឯកសារដែលអ្នកបានរក្សាទុកសម្រាប់រៀនត្រៀមប្រឡង
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-center">
+          <div className="flex items-center gap-3 self-end sm:self-center">
             {favoriteQuestions.length > 0 && (
               <Button
                 onClick={startPractice}
-                className="bg-gradient-to-r from-[#094C72] to-[#1565C0] hover:from-[#073956] hover:to-[#0d47a1] text-white font-khmer font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2"
+                className="bg-gradient-to-r from-[#094C72] to-[#1565C0] hover:from-[#073956] hover:to-[#0d47a1] text-white font-khmer font-bold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-current text-amber-300" />
                 <span>ធ្វើតេស្តសំណួរចូលចិត្ត ({favoriteQuestions.length})</span>

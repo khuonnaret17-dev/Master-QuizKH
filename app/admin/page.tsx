@@ -1725,22 +1725,22 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-12 font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-transparent pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 font-sans overflow-x-hidden">
       <div className="max-w-5xl mx-auto">
-        <header className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border-b border-slate-200/80 pb-6">
           <div>
-            <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-2 sm:mb-4 transition-colors text-xs sm:text-sm">
+            <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-3 sm:mb-4 transition-colors text-xs sm:text-sm font-semibold bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               ត្រឡប់ទៅទំព័រដើម (Back to Home)
             </Link>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-            <p className="text-xs sm:text-sm text-slate-500">Manage ministry information, quizzes, and terms</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage ministry information, quizzes, and terms</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             {(activeTab === 'INSTITUTION' || activeTab === 'SUBJECT') && (
               <button 
                 onClick={handleAddMinistry}
-                className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-xs sm:text-sm"
+                className="w-full sm:w-auto px-5 py-2.5 sm:py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-xs sm:text-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> {activeTab === 'INSTITUTION' ? 'Add Ministry' : 'Add Subject'}
               </button>

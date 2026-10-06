@@ -277,15 +277,16 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] pt-6 sm:pt-8 md:pt-12 pb-12 sm:pb-16 px-3.5 sm:px-6 md:px-8 lg:px-12">
+    <main className="min-h-screen bg-[#F8FAFC] pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 lg:px-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Navigation & Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5 border-b border-slate-200/80 pb-8 mb-8">
           <div className="flex items-center gap-4">
             <Link 
               href="/"
-              className="p-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-2xl transition-all shadow-sm hover:shadow-md cursor-pointer"
+              className="p-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-2xl transition-all shadow-sm hover:shadow-md cursor-pointer"
+              title="ត្រឡប់ទៅទំព័រដើម"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
@@ -297,13 +298,13 @@ export default function Dashboard() {
               <h1 className="text-2xl md:text-3xl font-black text-slate-900 font-khmer mt-1">ផ្ទាំងគ្រប់គ្រងវឌ្ឍនភាពសិក្សា</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-white px-4 py-2 border border-slate-200 rounded-2xl shadow-xs">
-            <div className="w-8 h-8 bg-[#094C72]/10 rounded-full flex items-center justify-center text-[#094C72]">
+          <div className="flex items-center gap-3 bg-white px-5 py-2.5 border border-slate-200 rounded-2xl shadow-xs">
+            <div className="w-9 h-9 bg-[#094C72]/10 rounded-full flex items-center justify-center text-[#094C72]">
               <User className="w-4 h-4" />
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800 leading-none">{user.displayName || user.email}</p>
-              <p className="text-[9px] font-semibold text-slate-400 mt-1 uppercase">សិក្ខាកាមត្រៀមប្រឡង</p>
+              <p className="text-[10px] font-semibold text-slate-400 mt-1 uppercase">សិក្ខាកាមត្រៀមប្រឡង</p>
             </div>
           </div>
         </div>

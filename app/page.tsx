@@ -170,12 +170,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-transparent pt-4 sm:pt-6 md:pt-10 pb-12 sm:pb-16 px-2.5 sm:px-6 md:px-8 overflow-x-hidden">
+    <main className="min-h-screen bg-transparent pt-8 sm:pt-12 md:pt-16 pb-16 sm:pb-24 px-3 sm:px-6 md:px-8 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-6 md:mb-12 text-center relative pt-1 sm:pt-2">
+        <header className="mb-8 md:mb-16 text-center relative pt-2 sm:pt-4">
           <div 
-            className="pt-6 sm:pt-8 md:pt-10 pb-8 sm:pb-10 md:pb-14 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.5rem] shadow-2xl" 
+            className="pt-8 sm:pt-12 md:pt-16 pb-10 sm:pb-14 md:pb-18 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.75rem] shadow-2xl" 
             style={{ 
               backgroundColor: '#094C72',
               backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 17L3 10l7-7 7 7-7 7z\' fill=\'%23D4AF37\' fill-opacity=\'0.04\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
@@ -208,13 +208,13 @@ export default function Home() {
             />
             
             {/* Top Navigation Row inside banner */}
-            <div className="w-full flex justify-end items-center flex-wrap gap-2.5 sm:gap-3.5 px-4 sm:px-8 md:px-10 mb-5 sm:mb-8 md:mb-10 z-30 relative">
+            <div className="w-full flex justify-end items-center flex-wrap gap-3 sm:gap-4 px-5 sm:px-10 md:px-14 mb-8 sm:mb-12 md:mb-14 z-30 relative">
               {userRole === 'ADMIN' && (
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link 
                     href="/admin" 
                     id="admin-link"
-                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer shrink-0"
+                    className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer shrink-0 cursor-pointer"
                   >
                     <Info className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                     <span className="hidden sm:inline">គ្រប់គ្រង (Admin)</span>
@@ -224,12 +224,12 @@ export default function Home() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link 
                   href="/favorites"
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 md:px-5 md:py-2.5 bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-md font-black text-xs md:text-sm font-khmer shrink-0 relative"
+                  className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-md font-black text-xs md:text-sm font-khmer shrink-0 relative cursor-pointer"
                 >
                   <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'text-rose-400 fill-rose-400' : ''}`} />
                   <span className="hidden sm:inline">ចូលចិត្ត</span>
                   {favorites.length > 0 && (
-                    <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-bold min-w-[18px] text-center">
+                    <span className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold min-w-[20px] text-center shadow-xs">
                       {favorites.length}
                     </span>
                   )}
@@ -251,7 +251,7 @@ export default function Home() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.96 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="relative w-24 min-[380px]:w-28 min-[380px]:h-28 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 aspect-square shrink-0 mb-3.5 sm:mb-5 md:mb-6 flex items-center justify-center bg-white rounded-full shadow-[0_0_40px_rgba(212,175,55,0.55)] sm:shadow-[0_0_55px_rgba(212,175,55,0.65)] ring-4 sm:ring-[5px] ring-[#D4AF37]/60 overflow-hidden cursor-pointer select-none transition-shadow hover:shadow-[0_0_65px_rgba(212,175,55,0.85)]"
+              className="relative w-28 min-[380px]:w-32 min-[380px]:h-32 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 aspect-square shrink-0 mb-4 sm:mb-6 md:mb-8 flex items-center justify-center bg-white rounded-full shadow-[0_0_40px_rgba(212,175,55,0.55)] sm:shadow-[0_0_55px_rgba(212,175,55,0.65)] ring-4 sm:ring-[5px] ring-[#D4AF37]/60 overflow-hidden cursor-pointer select-none transition-shadow hover:shadow-[0_0_65px_rgba(212,175,55,0.85)]"
               title="កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ"
             >
               <SafeImage 
@@ -260,14 +260,14 @@ export default function Home() {
                 alt="កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ Logo"
                 fill
                 priority
-                sizes="(max-width: 640px) 112px, (max-width: 1024px) 144px, 160px"
+                sizes="(max-width: 640px) 128px, (max-width: 1024px) 144px, 160px"
                 className="object-cover drop-shadow-md pointer-events-none"
               />
             </motion.div>
             <motion.h1 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-xl min-[380px]:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFFDF6] via-[#FCECB8] to-[#E2BD55] mb-2 sm:mb-3 drop-shadow-sm leading-tight text-center font-khmer px-3 w-full max-w-[620px] flex items-center justify-center break-words-khmer"
+              className="text-xl min-[380px]:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFFDF6] via-[#FCECB8] to-[#E2BD55] mb-3 sm:mb-4 drop-shadow-sm leading-tight text-center font-khmer px-3 w-full max-w-[640px] flex items-center justify-center break-words-khmer"
             >
               កម្មវិធីត្រៀមប្រឡងក្របខ័ណ្ឌ
             </motion.h1>
@@ -275,13 +275,13 @@ export default function Home() {
               initial={{ width: 0 }}
               animate={{ width: 140 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent rounded-full mx-auto mb-3.5 sm:mb-4"
+              className="h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent rounded-full mx-auto mb-4 sm:mb-6"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
-              className="mt-2 flex flex-col items-center gap-4 px-2 sm:px-4 w-full"
+              className="mt-4 sm:mt-6 flex flex-col items-center gap-4 px-2 sm:px-4 w-full"
             >
               <div className="relative p-[1.5px] rounded-2xl overflow-hidden mx-auto w-full max-w-3xl group shadow-2xl">
                 {/* Rotating Conic Gradients for the border */}

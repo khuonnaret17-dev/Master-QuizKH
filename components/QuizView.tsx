@@ -439,12 +439,12 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
       )}
 
       {/* Quiz Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 pt-1 sm:pt-2 pb-2">
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-5 pt-3 sm:pt-5 md:pt-6 pb-4 sm:pb-6 mb-6 sm:mb-8 border-b border-slate-200/60">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Button 
             variant="ghost" 
             onClick={handleSafeBack} 
-            className="group gap-1 sm:gap-1.5 text-xs font-bold rounded-xl px-2.5 sm:px-3.5 py-2 font-khmer shadow-2xs hover:bg-slate-100"
+            className="group gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold rounded-2xl px-3.5 sm:px-4.5 py-2.5 font-khmer shadow-2xs hover:bg-slate-100 border border-slate-200/80"
             style={{ color: '#094C72', backgroundColor: 'rgba(9, 76, 114, 0.08)' }}
           >
             <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
@@ -454,16 +454,16 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
           <Button
             variant="ghost"
             onClick={handlePauseAndExit}
-            className="gap-1.5 text-xs font-bold font-khmer rounded-xl px-2.5 sm:px-3 py-2 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/80 shadow-2xs"
+            className="gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold font-khmer rounded-2xl px-3.5 sm:px-4 py-2.5 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/80 shadow-2xs"
             title="ផ្អាក និង រក្សាទុកវិញ្ញាសា (Pause & Save)"
           >
-            <Pause className="w-3.5 h-3.5 fill-current text-blue-600" />
+            <Pause className="w-4 h-4 fill-current text-blue-600" />
             <span className="hidden xs:inline">ផ្អាក & រក្សាទុក</span>
             <span className="xs:hidden">ផ្អាក</span>
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-end min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end min-w-0">
           {/* Favorite Lesson Button */}
           <button
             type="button"
@@ -472,16 +472,16 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
               toggleFavorite(lessonKey);
             }}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold font-khmer transition-all border shrink-0 cursor-pointer",
+              "flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold font-khmer transition-all border shrink-0 cursor-pointer shadow-2xs",
               favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`)
-                ? "bg-rose-50 text-rose-600 border-rose-300 shadow-2xs"
-                : "bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 border-slate-200 shadow-2xs"
+                ? "bg-rose-50 text-rose-600 border-rose-300"
+                : "bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 border-slate-200"
             )}
             title={favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`) ? "ដកមេរៀននេះពីបញ្ជីចូលចិត្ត" : "រក្សាទុកមេរៀននេះក្នុងបញ្ជីចូលចិត្ត"}
           >
-            <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+            <BookOpen className="w-4 h-4 text-amber-600" />
             <span className="hidden sm:inline">ចូលចិត្តមេរៀន</span>
-            <Heart className={cn("w-3.5 h-3.5", favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`) ? "fill-rose-500 text-rose-500" : "text-slate-400")} />
+            <Heart className={cn("w-4 h-4", favorites.includes(`lesson_${ministry.id}_${encodeURIComponent(category)}`) ? "fill-rose-500 text-rose-500" : "text-slate-400")} />
           </button>
 
           {/* Favorite Question Button */}
@@ -489,20 +489,20 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
             type="button"
             onClick={() => toggleFavorite(currentQuiz.id)}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold font-khmer transition-all border shrink-0 cursor-pointer",
+              "flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold font-khmer transition-all border shrink-0 cursor-pointer shadow-2xs",
               favorites.includes(currentQuiz.id)
-                ? "bg-rose-50 text-rose-600 border-rose-300 shadow-2xs"
-                : "bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 border-slate-200 shadow-2xs"
+                ? "bg-rose-50 text-rose-600 border-rose-300"
+                : "bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 border-slate-200"
             )}
             title={favorites.includes(currentQuiz.id) ? "ដកសំណួរនេះពីបញ្ជីចូលចិត្ត" : "រក្សាទុកសំណួរនេះក្នុងបញ្ជីចូលចិត្ត"}
           >
-            <Heart className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", favorites.includes(currentQuiz.id) ? "fill-rose-500 text-rose-500" : "text-slate-400")} />
+            <Heart className={cn("w-4 h-4", favorites.includes(currentQuiz.id) ? "fill-rose-500 text-rose-500" : "text-slate-400")} />
             <span className="hidden sm:inline">សំណួរចូលចិត្ត</span>
           </button>
 
           {/* Category Pill */}
-          <div className="px-3 sm:px-4 py-1.5 bg-white rounded-full border border-slate-200 shadow-2xs truncate max-w-[130px] sm:max-w-[200px] md:max-w-none">
-            <span className="text-[10px] sm:text-xs font-bold text-[#D4AF37] truncate block font-khmer">
+          <div className="px-3.5 sm:px-4.5 py-2 bg-white rounded-2xl border border-slate-200 shadow-2xs truncate max-w-[140px] sm:max-w-[220px] md:max-w-none">
+            <span className="text-xs sm:text-sm font-bold text-[#D4AF37] truncate block font-khmer">
               {category}
             </span>
           </div>
