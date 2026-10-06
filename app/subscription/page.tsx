@@ -36,18 +36,34 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6 md:p-12">
+    <main className="min-h-screen bg-slate-50 tma-top-spacing pt-20 sm:pt-24 md:pt-28 px-4 sm:px-8 md:px-12 pb-12 sm:pb-16 overflow-x-hidden">
       <div className="max-w-5xl mx-auto">
         <header className="mb-8 flex justify-start">
-          <button onClick={() => router.back()} className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors text-sm font-bold font-khmer">
+          <button onClick={() => router.back()} className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors text-sm font-bold font-khmer cursor-pointer">
             <ArrowLeft className="w-4 h-4 mr-2" />
             ត្រឡប់ក្រោយ
           </button>
         </header>
 
-        <header className="mb-12 text-center">
+        <header className="mb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 mb-4 font-khmer">ជ្រើសរើសគម្រោង Premium</h1>
-          <p className="text-slate-600 font-khmer">បង្កើនសមត្ថភាពសិក្សាជាមួយគម្រោងពិសេសរបស់យើង</p>
+          <p className="text-slate-600 font-khmer mb-4">បង្កើនសមត្ថភាពសិក្សាជាមួយគម្រោងពិសេសរបស់យើង</p>
+          
+          {/* Telegram Unlock Banner */}
+          <div className="max-w-xl mx-auto p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+            <div>
+              <p className="text-xs font-bold text-blue-900 font-khmer">ដោះសោការធ្វើតេស្តពេញលេញ</p>
+              <p className="text-[11px] text-slate-600 font-khmer">គណនីធម្មតាអាចធ្វើតេស្ត ១០ សំណួរ/ថ្ងៃ។ ទាក់ទង Telegram ដើម្បីដោះសោពេញលេញ</p>
+            </div>
+            <a
+              href="https://t.me/qcm_and_q_a"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-xs font-bold font-khmer whitespace-nowrap shadow-sm transition-colors"
+            >
+              Telegram @qcm_and_q_a
+            </a>
+          </div>
         </header>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">

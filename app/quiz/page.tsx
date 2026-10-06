@@ -5,11 +5,27 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useFirebase } from '@/lib/FirebaseProvider';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle, ArrowLeft, RotateCcw, Trophy, Brain, Heart, Play, PlayCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, RotateCcw, Trophy, Brain, Heart, Play, PlayCircle, Send, ExternalLink, Lock, Crown, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { DAILY_FREE_QUESTIONS_LIMIT, TELEGRAM_HANDLE, TELEGRAM_UNLOCK_URL } from '@/lib/daily-usage';
+import { AnswerReviewList } from '@/components/AnswerReviewList';
+import { Quiz } from '@/lib/types';
 
 export default function QuizPage() {
-  const { ministries, loading, authLoading, user, userRole, isPremium, favorites, toggleFavorite } = useFirebase();
+  const { 
+    ministries, 
+    loading, 
+    authLoading, 
+    userRole, 
+    isPremium, 
+    favorites, 
+    toggleFavorite,
+    dailyQuestionsRemaining, 
+    hasReachedDailyLimit, 
+    recordDailyQuestion 
+  } = useFirebase();
+
+  const isStandardAccount = !isPremium && userRole !== 'ADMIN';
   const [currentStep, setCurrentStep] = useState(0);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
@@ -17,6 +33,7 @@ export default function QuizPage() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [quizSeed, setQuizSeed] = useState(0);
   const [hasSavedProgress, setHasSavedProgress] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<{ [key: number]: number }>({});
 
   // Restore saved quick quiz if available
   useEffect(() => {
@@ -60,11 +77,12 @@ export default function QuizPage() {
     resetQuiz();
   };
 
-  // Generate a quiz from ministries data - memoized so options don't reshuffle on answer selection
+  // Generate a quiz from ministries data - 10 questions for a complete daily test session
   const quizzes = useMemo(() => {
     if (ministries.length < 4 || quizSeed < 0) return [];
     
-    return ministries.slice(0, 5).map((m, i) => {
+    // Create 10 questions from ministries for the daily test
+    return ministries.slice(0, 10).map((m, i) => {
       const isKhmerQuestion = i % 2 === 0;
       const options = [m, ...ministries.filter(x => x.id !== m.id).sort(() => 0.5 - Math.random()).slice(0, 3)]
         .sort(() => 0.5 - Math.random());
@@ -84,7 +102,11 @@ export default function QuizPage() {
 
   const handleAnswer = (index: number) => {
     if (isAnswered) return;
+    if (isStandardAccount) {
+      recordDailyQuestion();
+    }
     setSelectedOption(index);
+    setUserAnswers(prev => ({ ...prev, [currentStep]: index }));
     setIsAnswered(true);
     const newScore = index === quizzes[currentStep]?.correctIndex ? score + 1 : score;
     if (index === quizzes[currentStep]?.correctIndex) {
@@ -134,6 +156,7 @@ export default function QuizPage() {
     setShowResult(false);
     setSelectedOption(null);
     setIsAnswered(false);
+    setUserAnswers({});
     setQuizSeed(s => s + 1);
     try {
       localStorage.removeItem('vignasa_quick_quiz_progress');
@@ -142,7 +165,7 @@ export default function QuizPage() {
     }
   };
 
-  const isBlocked = !user || (!isPremium && userRole !== 'ADMIN');
+  const isDailyLimitBlocked = isStandardAccount && hasReachedDailyLimit;
 
   if (loading || authLoading) {
     return (
@@ -155,13 +178,12 @@ export default function QuizPage() {
     );
   }
 
-  if (isBlocked) {
-    const isLoggedIn = !!user;
+  if (isDailyLimitBlocked) {
     return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center p-6 md:p-12">
+      <div className="min-h-screen bg-transparent tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-16 px-4 flex items-center justify-center">
         <div className="max-w-md w-full">
-          <header className="mb-8">
-            <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors">
+          <header className="mb-6">
+            <Link href="/" className="inline-flex items-center text-slate-500 hover:text-slate-800 transition-colors font-khmer text-xs sm:text-sm font-bold">
               <ArrowLeft className="w-4 h-4 mr-2" />
               ត្រឡប់ទៅដើមវិញ (Home)
             </Link>
@@ -170,55 +192,54 @@ export default function QuizPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="p-8 text-center rounded-[2rem] bg-white border-2 border-amber-500/30 shadow-2xl relative overflow-hidden"
-            style={{
-              backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 17L3 10l7-7 7 7-7 7z\' fill=\'%23D4AF37\' fill-opacity=\'0.02\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")'
-            }}
+            className="p-8 text-center rounded-[2.5rem] bg-white border-2 border-amber-400/40 shadow-2xl relative overflow-hidden"
           >
-            {/* Background Effects */}
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl opacity-60" />
-            <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl opacity-60" />
-
-            <div className="w-24 h-24 mx-auto rounded-3xl bg-amber-100 flex items-center justify-center text-amber-500 border border-amber-200 mb-6 shadow-inner">
-              <Trophy className="w-12 h-12 fill-amber-500/20 animate-pulse" />
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-200 mb-5 shadow-inner">
+              <Lock className="w-10 h-10" />
             </div>
 
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-wider">
-                👑 {isLoggedIn ? 'PREMIUM REQUIRED' : 'LOGIN REQUIRED'}
+            <div className="space-y-3 mb-6">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-wider font-khmer">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>កូតាឥតគិតថ្លៃ ១០ សំណួរ/ថ្ងៃ បានពេញហើយ</span>
               </div>
 
-              <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">
-                {isLoggedIn 
-                  ? 'អ្នកត្រូវការគម្រោង Premium ដើម្បីលេង!'
-                  : 'សូមចូលគណនីដើម្បីចាប់ផ្ដើម!'}
+              <h2 className="text-2xl font-black text-slate-900 leading-tight font-khmer">
+                អ្នកបានបញ្ចប់កូតាធ្វើតេស្តប្រចាំថ្ងៃ!
               </h2>
 
-              <p className="text-sm text-slate-500 leading-relaxed max-w-sm mx-auto">
-                {isLoggedIn 
-                  ? 'សាកល្បងសមត្ថភាពស្វែងយល់ពីក្រសួងនិងស្ថាប័នរដ្ឋផ្សេងៗ ជាមួយមុខងារតេស្តពិសេសរបស់សមាជិកវីរជន Premium។'
-                  : 'សូមចូលគណនីរបស់អ្នកដើម្បីទទួលបានសិទ្ធិចូលប្រើមុខងារតេស្តចំណេះដឹងពិសេស។'}
+              <p className="text-sm text-slate-600 leading-relaxed font-khmer">
+                គណនីធម្មតាអាចធ្វើតេស្តចំនួន <span className="font-bold text-[#094C72]">១០ សំណួរក្នុងមួយថ្ងៃ</span>។ អ្នកបានឆ្លើយគ្រប់ចំនួន {DAILY_FREE_QUESTIONS_LIMIT} សំណួរ សម្រាប់ថ្ងៃនេះរួចរាល់ហើយ។
               </p>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-4">
-              {isLoggedIn ? (
-                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col items-center gap-3 text-center">
-                  <p className="text-xs text-slate-500 font-bold">កំណត់សម្គាល់</p>
-                  <p className="text-sm text-slate-600 font-khmer">គម្រោង Premium ត្រូវបានផ្ដល់ជូនដោយអ្នកគ្រប់គ្រងផ្ទាល់។ សូមទាក់ទងអ្នកគ្រប់គ្រងដើម្បីទទួលបានសិទ្ធិប្រើប្រាស់។</p>
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col items-center gap-3">
-                  <p className="text-xs text-slate-500 font-bold">សូមសាកល្បងចូលគណនីរបស់អ្នកជាមុនសិន</p>
-                  <Link
-                    href="/"
-                    className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors"
-                  >
-                    ចូលទៅកាន់ការចូលគណនី
-                  </Link>
-                </div>
-              )}
+            {/* Telegram Unlock Box */}
+            <div className="p-5 bg-gradient-to-br from-[#0088cc]/10 via-blue-50/80 to-indigo-50/60 rounded-3xl border-2 border-[#0088cc]/30 text-left space-y-3 mb-6 shadow-sm">
+              <div className="flex items-center gap-2.5 text-[#0088cc] font-black text-sm font-khmer">
+                <Send className="w-4 h-4 -rotate-12" />
+                <span>ដោះសោការធ្វើតេស្តពេញលេញ (Full Access)</span>
+              </div>
+              <p className="text-xs text-slate-600 font-khmer leading-relaxed">
+                ដើម្បីដោះសោការធ្វើតេស្តគ្រប់វិញ្ញាសាដោយគ្មានដែនកំណត់សំណួរ សូមទំនាក់ទំនងមកកាន់ Telegram៖
+              </p>
+              <a
+                href={TELEGRAM_UNLOCK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-4 bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#00669c] text-white font-black rounded-xl shadow-md transition-all text-sm font-khmer group cursor-pointer"
+              >
+                <Send className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <span>ទាក់ទង Telegram {TELEGRAM_HANDLE} ដើម្បីដោះសោ</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+              </a>
             </div>
+
+            <Link
+              href="/"
+              className="inline-block w-full py-3 text-slate-500 hover:text-slate-800 font-bold text-xs font-khmer border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              ត្រឡប់ទៅទំព័រដើម
+            </Link>
           </motion.div>
         </div>
       </div>
@@ -242,14 +263,35 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 overflow-x-hidden">
+    <div className="min-h-screen bg-transparent tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 overflow-x-hidden">
       <div className="max-w-2xl mx-auto">
-        <header className="mb-8 sm:mb-12 flex items-center justify-between gap-3">
+        <header className="mb-8 sm:mb-12 flex items-center justify-between gap-3 flex-wrap">
           <Link href="/" className="inline-flex items-center text-slate-600 hover:text-slate-900 transition-all text-xs sm:text-sm font-bold bg-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl border border-slate-200 shadow-2xs cursor-pointer font-khmer">
             <ArrowLeft className="w-4 h-4 mr-1.5" />
             ទំព័រដើម (Home)
           </Link>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Daily Quota Badge */}
+            {isStandardAccount ? (
+              <div className="bg-amber-50 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl border border-amber-200 shadow-2xs flex items-center gap-1.5 text-xs text-amber-900 font-khmer">
+                <span className="font-bold">កូតាថ្ងៃនេះ៖</span>
+                <span>{Math.max(0, dailyQuestionsRemaining)}/{DAILY_FREE_QUESTIONS_LIMIT}</span>
+                <a
+                  href={TELEGRAM_UNLOCK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#0088cc] hover:text-[#006699] font-black underline ml-1"
+                >
+                  ដោះសោ
+                </a>
+              </div>
+            ) : (
+              <div className="bg-emerald-50 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl border border-emerald-200 shadow-2xs flex items-center gap-1.5 text-xs text-emerald-800 font-khmer">
+                <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span className="font-bold">Premium</span>
+              </div>
+            )}
+
             <Link 
               href="/favorites"
               className="bg-white px-3.5 py-2 sm:px-4.5 sm:py-2.5 rounded-2xl border border-slate-200 shadow-2xs flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-700 hover:text-rose-600 transition-all cursor-pointer"
@@ -401,9 +443,70 @@ export default function QuizPage() {
               <div className="w-24 h-24 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Trophy className="w-12 h-12 text-amber-500" />
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Quiz Completed!</h2>
-              <p className="text-slate-500 mb-8">You answered {score} out of {quizzes.length} correctly.</p>
+              <h2 className="text-3xl font-black text-slate-900 mb-2 font-khmer">បញ្ចប់ការធ្វើតេស្ត!</h2>
+              <p className="text-slate-500 mb-6 font-khmer">អ្នកឆ្លើយត្រូវ {score} នៃ {quizzes.length} សំណួរ។</p>
+
+              {/* Answer Review Section */}
+              <div className="mb-6 text-left">
+                <AnswerReviewList
+                  items={quizzes.map((q, idx) => {
+                    const pickedIdx = userAnswers[idx];
+                    const optionKeys = ['a', 'b', 'c', 'd'];
+                    const userPickKey = pickedIdx !== undefined ? optionKeys[pickedIdx] : undefined;
+                    const correctKey = optionKeys[q.correctIndex];
+                    const isCorrect = pickedIdx === q.correctIndex;
+
+                    const quizObj: Quiz = {
+                      id: q.id,
+                      category: 'ទូទៅ',
+                      type: 'MULTIPLE_CHOICE',
+                      question: q.question,
+                      options: {
+                        a: q.options[0] || '',
+                        b: q.options[1] || '',
+                        c: q.options[2] || '',
+                        d: q.options[3] || ''
+                      },
+                      correctAnswer: correctKey,
+                      explanation: q.explanation
+                    };
+
+                    return {
+                      questionNumber: idx + 1,
+                      quiz: quizObj,
+                      userAnswer: userPickKey,
+                      isCorrect
+                    };
+                  })}
+                  quizType="MULTIPLE_CHOICE"
+                  title="ផ្ទៀងផ្ទាត់សំណួរ និងចម្លើយទាំង ១០ នៃតេស្តនេះ"
+                  subtitle="ពិនិត្យមើលចម្លើយរបស់អ្នក និងចម្លើយត្រឹមត្រូវ"
+                />
+              </div>
               
+              {/* Telegram Unlock Box */}
+              {isStandardAccount && (
+                <div className="p-5 bg-gradient-to-br from-[#0088cc]/10 via-blue-50/80 to-indigo-50/60 rounded-3xl border-2 border-[#0088cc]/30 text-left space-y-3 mb-6 shadow-sm">
+                  <div className="flex items-center gap-2.5 text-[#0088cc] font-black text-sm font-khmer">
+                    <Send className="w-4 h-4 -rotate-12" />
+                    <span>ដោះសោការធ្វើតេស្តពេញលេញគ្មានដែនកំណត់</span>
+                  </div>
+                  <p className="text-xs text-slate-600 font-khmer leading-relaxed">
+                    គណនីធម្មតាអាចធ្វើតេស្ត ១០ សំណួរក្នុងមួយថ្ងៃ។ ដើម្បីដោះសោការធ្វើតេស្តពេញលេញគ្រប់វិញ្ញាសាដោយគ្មានដែនកំណត់ សូមទំនាក់ទំនងតាមរយៈ Telegram៖
+                  </p>
+                  <a
+                    href={TELEGRAM_UNLOCK_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-4 bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#00669c] text-white font-black rounded-xl shadow-md transition-all text-sm font-khmer group cursor-pointer"
+                  >
+                    <Send className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span>ទាក់ទង Telegram {TELEGRAM_HANDLE} ដើម្បីដោះសោ</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                  </a>
+                </div>
+              )}
+
               <div className="flex gap-4">
                 <button 
                   onClick={resetQuiz}

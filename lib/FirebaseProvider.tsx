@@ -7,6 +7,11 @@ import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut,
 import { Ministry, UserRole, Progress, PdfDocument } from './types';
 import { firestoreService } from './firestore-service';
 import { ministries as defaultMinistries } from './data';
+import { 
+  getDailyQuestionsAnswered, 
+  incrementDailyQuestionsAnswered, 
+  DAILY_FREE_QUESTIONS_LIMIT 
+} from './daily-usage';
 
 export interface CustomUserSession {
   uid: string;
@@ -26,6 +31,10 @@ interface FirebaseContextType {
   favorites: string[];
   isPremium: boolean;
   premiumUntil: string | null;
+  dailyQuestionsAnswered: number;
+  dailyQuestionsRemaining: number;
+  hasReachedDailyLimit: boolean;
+  recordDailyQuestion: () => number;
   linkedBank: { bankName: string; accountNumber: string; accountHolder: string; active?: boolean } | null;
   authLoading: boolean;
   isLoggingIn: boolean;
@@ -75,10 +84,28 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
+  const [dailyCount, setDailyCount] = useState<number>(0);
   const [linkedBank, setLinkedBank] = useState<{ bankName: string; accountNumber: string; accountHolder: string; active?: boolean } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDailyCount(getDailyQuestionsAnswered(user?.uid));
+      const handleUsageUpdate = () => {
+        setDailyCount(getDailyQuestionsAnswered(user?.uid));
+      };
+      window.addEventListener('vignasa_daily_usage_updated', handleUsageUpdate);
+      return () => window.removeEventListener('vignasa_daily_usage_updated', handleUsageUpdate);
+    }
+  }, [user?.uid]);
+
+  const recordDailyQuestion = () => {
+    const nextVal = incrementDailyQuestionsAnswered(user?.uid, 1);
+    setDailyCount(nextVal);
+    return nextVal;
+  };
 
   useEffect(() => {
     // Initialize persistence
@@ -775,6 +802,10 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       favorites,
       isPremium,
       premiumUntil,
+      dailyQuestionsAnswered: dailyCount,
+      dailyQuestionsRemaining: isPremium || userRole === 'ADMIN' ? Infinity : Math.max(0, DAILY_FREE_QUESTIONS_LIMIT - dailyCount),
+      hasReachedDailyLimit: isPremium || userRole === 'ADMIN' ? false : dailyCount >= DAILY_FREE_QUESTIONS_LIMIT,
+      recordDailyQuestion,
       linkedBank,
       authLoading, 
       isLoggingIn,

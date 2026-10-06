@@ -277,7 +277,7 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 lg:px-12 overflow-x-hidden">
+    <main className="min-h-screen bg-[#F8FAFC] tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-16 sm:pb-24 px-4 sm:px-8 lg:px-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Navigation & Header */}
@@ -643,9 +643,9 @@ export default function Dashboard() {
                   <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
                     {/* Logo & Name */}
                     <td className="py-4 px-4 flex items-center gap-3">
-                      <div className="relative w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center p-1.5">
+                      <div className="relative w-10 h-10 bg-slate-50 border border-slate-100 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center p-1.5">
                         {m.logo ? (
-                          <SafeImage src={m.logo} alt={m.name} fill className="object-contain" />
+                          <SafeImage src={m.logo} alt={m.name} fill className="object-contain rounded-full" />
                         ) : (
                           <GraduationCap className="w-5 h-5 text-slate-300" />
                         )}

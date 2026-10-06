@@ -575,7 +575,7 @@ export async function generateQuizImageBlob(
         position: relative;
         width: 54px;
         height: 54px;
-        border-radius: 16px;
+        border-radius: 50%;
         border: 2px solid #D4AF37;
         background: #FFFFFF;
         box-shadow: 0 6px 16px rgba(0,0,0,0.15);
@@ -589,6 +589,7 @@ export async function generateQuizImageBlob(
         width: 100%;
         height: 100%;
         object-fit: cover;
+        border-radius: 50%;
       }
       
       .brand-info {

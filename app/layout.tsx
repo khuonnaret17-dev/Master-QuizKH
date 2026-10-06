@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { FirebaseProvider } from "@/lib/FirebaseProvider";
+import { TelegramWebAppInit } from "@/components/TelegramWebAppInit";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -33,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="km" className="overflow-x-hidden">
       <body className="antialiased overflow-x-hidden max-w-full">
+        <TelegramWebAppInit />
         <Suspense fallback={null}>
           <FirebaseProvider>
             {children}

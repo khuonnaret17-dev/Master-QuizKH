@@ -1725,7 +1725,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-transparent tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 font-sans overflow-x-hidden">
       <div className="max-w-5xl mx-auto">
         <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border-b border-slate-200/80 pb-6">
           <div>
@@ -2031,8 +2031,8 @@ export default function AdminPage() {
                                 <div {...provided.dragHandleProps} className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing p-1 transition-colors shrink-0">
                                   <GripVertical className="w-5 h-5" />
                                 </div>
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-slate-50 border border-slate-100 flex-shrink-0 flex items-center justify-center p-1.5 sm:p-2 relative overflow-hidden">
-                                  <SafeImage src={ministry.logo} alt="" fill className="object-contain p-1 sm:p-2" />
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-50 border border-slate-100 flex-shrink-0 flex items-center justify-center p-1.5 sm:p-2 relative overflow-hidden">
+                                  <SafeImage src={ministry.logo} alt="" fill className="object-contain p-1 sm:p-2 rounded-full" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-bold text-slate-800 text-base sm:text-lg truncate flex items-center gap-2">

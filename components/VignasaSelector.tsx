@@ -76,13 +76,13 @@ export const VignasaSelector: React.FC<VignasaSelectorProps> = ({
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-[1.5rem] md:rounded-[2rem] p-3 md:p-4 shadow-[0_20px_50px_rgba(27,54,93,0.1)] flex items-center justify-center shrink-0 border border-[#1B365D]/5 relative"
+            className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-full p-3 md:p-4 shadow-[0_20px_50px_rgba(27,54,93,0.1)] flex items-center justify-center shrink-0 border border-[#1B365D]/10 relative overflow-hidden"
           >
             <SafeImage 
               src={ministry.logo} 
               alt={ministry.name} 
               fill
-              className="object-contain p-4 md:p-6"
+              className="object-contain p-4 md:p-6 rounded-full"
             />
           </motion.div>
         )}
@@ -123,13 +123,13 @@ export const VignasaSelector: React.FC<VignasaSelectorProps> = ({
                   )}
                 >
                   <CardHeader className="p-8 md:p-10 pb-4 md:pb-6">
-                    <div className="w-12 h-12 md:w-16 md:h-16 bg-[#FAF9F6] text-[#1B365D] rounded-2xl md:rounded-3xl flex items-center justify-center mb-6 md:mb-8 shadow-sm border border-[#1B365D]/5 overflow-hidden p-2 relative">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-[#FAF9F6] text-[#1B365D] rounded-full flex items-center justify-center mb-6 md:mb-8 shadow-sm border border-[#1B365D]/5 overflow-hidden p-2 relative">
                       {ministry.logo ? (
                         <SafeImage 
                           src={ministry.logo} 
                           alt={ministry.name} 
                           fill
-                          className="object-contain p-2"
+                          className="object-contain p-2 rounded-full"
                         />
                       ) : (
                         type === 'MULTIPLE_CHOICE' ? <GraduationCap className="w-6 h-6 md:w-8 md:h-8" /> : type === 'Q_AND_A' ? <BookOpen className="w-6 h-6 md:w-8 md:h-8" /> : <Globe className="w-6 h-6 md:w-8 md:h-8" />
@@ -173,13 +173,13 @@ export const VignasaSelector: React.FC<VignasaSelectorProps> = ({
                   onClick={() => onSelect(category, selectedType)}
                 >
                   <CardHeader className="p-10 pb-6">
-                    <div className="w-16 h-16 bg-[#FAF9F6] text-[#1B365D] rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500 shadow-sm border border-[#1B365D]/5 overflow-hidden p-2 relative">
+                    <div className="w-16 h-16 bg-[#FAF9F6] text-[#1B365D] rounded-full flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500 shadow-sm border border-[#1B365D]/5 overflow-hidden p-2 relative">
                       {ministry.logo ? (
                         <SafeImage 
                           src={ministry.logo} 
                           alt={ministry.name} 
                           fill
-                          className="object-contain p-2"
+                          className="object-contain p-2 rounded-full"
                         />
                       ) : (
                         getCategoryIcon(category)

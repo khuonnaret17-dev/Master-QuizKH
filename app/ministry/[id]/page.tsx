@@ -8,7 +8,7 @@ import { QuizType, PdfDocument, QuizSession } from '@/lib/types';
 import { findMinistryUnfinishedSession, hasCategoryUnfinishedSession, clearSession } from '@/lib/quiz-session';
 import { firestoreService } from '@/lib/firestore-service';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Globe, BookOpen, HelpCircle, MessageSquare, ChevronRight, CheckCircle2, ChevronLeft, FileText, Crown, Download, Lock, Printer, Play, PlayCircle, X, Heart } from 'lucide-react';
+import { ArrowLeft, Globe, BookOpen, HelpCircle, MessageSquare, ChevronRight, CheckCircle2, ChevronLeft, FileText, Download, Lock, Printer, Play, PlayCircle, X, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useMemo, useEffect, Suspense } from 'react';
@@ -23,7 +23,7 @@ function MinistryDetailContent() {
   const searchParams = useSearchParams();
   const rawTab = searchParams?.get('tab');
   const initialTab = (['INFO', 'MCQ', 'QA', 'VOCABULARY', 'DOCUMENTS'].includes(rawTab || '') ? rawTab : 'INFO') as 'INFO' | 'MCQ' | 'QA' | 'VOCABULARY' | 'DOCUMENTS';
-  const { ministries, documents: allDocuments, loading, authLoading, user, saveProgress, isPremium, userRole, favorites, toggleFavorite } = useFirebase();
+  const { ministries, documents: allDocuments, loading, authLoading, user, saveProgress, userRole, favorites, toggleFavorite } = useFirebase();
   const [activeTab, setActiveTab] = useState<'INFO' | 'MCQ' | 'QA' | 'VOCABULARY' | 'DOCUMENTS'>(initialTab);
   const [navigationPath, setNavigationPath] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -471,11 +471,7 @@ function MinistryDetailContent() {
     <div className="min-h-screen bg-transparent">
       {/* Hero Header */}
       <div 
-        className="relative min-h-[18rem] md:min-h-[22rem] h-auto bg-slate-900 overflow-hidden pt-10 sm:pt-14 md:pt-18 pb-10 sm:pb-12 md:pb-16"
-        style={{
-          width: '360px',
-          height: '349.99px'
-        }}
+        className="relative min-h-[18rem] md:min-h-[22rem] h-auto bg-slate-900 overflow-hidden tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-10 sm:pb-12 md:pb-16 w-full"
       >
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <SafeImage src={ministry.logo} alt="" fill className="object-cover blur-xl" />
@@ -485,9 +481,6 @@ function MinistryDetailContent() {
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 flex flex-col justify-between h-full">
           <div 
             className="flex items-center justify-between gap-4 mb-8 sm:mb-12"
-            style={{
-              height: '78.6562px'
-            }}
           >
             <Link 
               href="/" 
@@ -517,8 +510,8 @@ function MinistryDetailContent() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6"
           >
-            <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-3 shadow-2xl flex-shrink-0 relative overflow-hidden">
-              <SafeImage src={ministry.logo} alt={ministry.name} fill className="object-contain p-1.5 sm:p-2" />
+            <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-full p-2 sm:p-3 shadow-2xl flex-shrink-0 relative overflow-hidden border border-white/20">
+              <SafeImage src={ministry.logo} alt={ministry.name} fill className="object-contain p-1.5 sm:p-2 rounded-full" />
             </div>
             <div className="flex-1 text-center sm:text-left flex flex-col md:flex-row md:items-end justify-between gap-4 w-full min-w-0">
               <div className="min-w-0">
@@ -599,13 +592,16 @@ function MinistryDetailContent() {
             </div>
 
             <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-4">
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col items-center gap-2">
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col items-center gap-3">
                 <Link
                   href="/"
                   className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors"
                 >
                   ត្រឡប់ទៅកម្មវិធីដើម្បីចូលគណនី
                 </Link>
+                <p className="text-xs text-slate-500 font-khmer">
+                  គណនីធម្មតាអាចធ្វើតេស្ត ១០ សំណួរក្នុងមួយថ្ងៃ។ ដោះសោពេញលេញតាម Telegram <a href="https://t.me/qcm_and_q_a" target="_blank" rel="noopener noreferrer" className="text-[#0088cc] font-bold underline">@qcm_and_q_a</a>
+                </p>
               </div>
             </div>
           </motion.div>
@@ -647,34 +643,9 @@ function MinistryDetailContent() {
           </div>
 
           {/* Content */}
-          <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 overflow-x-hidden" style={{ backgroundColor: '#d4cda8' }}>
+          <main className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 overflow-x-hidden">
             <AnimatePresence initial={false}>
-              {!isPremium && ['MCQ', 'QA', 'VOCABULARY'].includes(activeTab) ? (
-                <motion.div
-                  key="premium-blocked"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="max-w-xl mx-auto p-8 md:p-12 text-center rounded-[2rem] bg-white border-2 border-[#D4AF37]/50 shadow-2xl relative overflow-hidden"
-                >
-                  <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 mb-6 shadow-inner">
-                    <Crown className="w-10 h-10" />
-                  </div>
-                  <div className="space-y-4">
-                    <h2 className="text-xl md:text-2xl font-black text-slate-900 font-khmer">
-                      លក្ខណៈនេះសម្រាប់តែគណនី Premium
-                    </h2>
-                    <p className="text-sm text-slate-500 font-khmer max-w-md mx-auto leading-relaxed">
-                      ដើម្បីអាចធ្វើតេស្តវិញ្ញាសា (ពហុចម្លើយ, សំណួរចម្លើយ និងវាក្យសព្ទ) សូមអាប់ដេតគណនីរបស់អ្នកទៅជាគម្រោង Premium ឬ VIP។
-                    </p>
-                  </div>
-                  <div className="mt-8 text-center p-4 bg-amber-50 rounded-xl border border-amber-100">
-                    <p className="text-sm font-bold text-amber-800 font-khmer">កំណាត់សម្គាល់</p>
-                    <p className="text-sm text-amber-700 font-khmer mt-2">គម្រោង Premium ត្រូវបានផ្ដល់ជូនដោយអ្នកគ្រប់គ្រងផ្ទាល់។ សូមទាក់ទងអ្នកគ្រប់គ្រងដើម្បីទទួលបានសិទ្ធិប្រើប្រាស់។</p>
-                  </div>
-                </motion.div>
-              ) : selectedCategory && activeTab !== 'DOCUMENTS' ? (
+              {selectedCategory && activeTab !== 'DOCUMENTS' ? (
                 <motion.div
                   key="quiz"
                   initial={{ opacity: 0 }}
@@ -978,7 +949,7 @@ function MinistryDetailContent() {
                       width: "56px", 
                       height: "56px", 
                       objectFit: "contain", 
-                      borderRadius: "12px", 
+                      borderRadius: "50%", 
                       padding: "4px", 
                       backgroundColor: "#ffffff", 
                       border: "1.5px solid #cbd5e1",

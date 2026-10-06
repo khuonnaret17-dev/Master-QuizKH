@@ -170,12 +170,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-transparent pt-8 sm:pt-12 md:pt-16 pb-16 sm:pb-24 px-3 sm:px-6 md:px-8 overflow-x-hidden">
+    <main className="min-h-screen bg-transparent tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-16 sm:pb-24 px-3 sm:px-6 md:px-8 overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-8 md:mb-16 text-center relative pt-2 sm:pt-4">
+        <header className="mb-8 md:mb-16 text-center relative pt-6 sm:pt-8 md:pt-10">
           <div 
-            className="pt-8 sm:pt-12 md:pt-16 pb-10 sm:pb-14 md:pb-18 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.75rem] shadow-2xl" 
+            className="pt-12 sm:pt-16 md:pt-20 pb-10 sm:pb-14 md:pb-18 flex flex-col items-center relative mx-0 sm:mx-2 md:mx-4 overflow-hidden rounded-3xl sm:rounded-[2.75rem] shadow-2xl" 
             style={{ 
               backgroundColor: '#094C72',
               backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 17L3 10l7-7 7 7-7 7z\' fill=\'%23D4AF37\' fill-opacity=\'0.04\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
@@ -208,28 +208,28 @@ export default function Home() {
             />
             
             {/* Top Navigation Row inside banner */}
-            <div className="w-full flex justify-end items-center flex-wrap gap-3 sm:gap-4 px-5 sm:px-10 md:px-14 mb-8 sm:mb-12 md:mb-14 z-30 relative">
+            <div className="w-full flex justify-end items-center flex-wrap gap-2 sm:gap-4 px-3 sm:px-8 md:px-14 pt-2 sm:pt-4 mb-6 sm:mb-10 md:mb-12 z-30 relative">
               {userRole === 'ADMIN' && (
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link 
                     href="/admin" 
                     id="admin-link"
-                    className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer shrink-0 cursor-pointer"
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-5 sm:py-2.5 bg-gradient-to-r from-[#D4AF37] to-[#FCECB8] border border-[#FCECB8]/50 rounded-2xl text-[#094C72] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all shadow-md group font-black text-xs md:text-sm font-khmer shrink-0 cursor-pointer"
                   >
                     <Info className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                    <span className="hidden sm:inline">គ្រប់គ្រង (Admin)</span>
+                    <span className="hidden xs:inline">គ្រប់គ្រង (Admin)</span>
                   </Link>
                 </motion.div>
               )}
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link 
                   href="/favorites"
-                  className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-md font-black text-xs md:text-sm font-khmer shrink-0 relative cursor-pointer"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-5 sm:py-2.5 bg-white/10 border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-md font-black text-xs md:text-sm font-khmer shrink-0 relative cursor-pointer"
                 >
                   <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'text-rose-400 fill-rose-400' : ''}`} />
-                  <span className="hidden sm:inline">ចូលចិត្ត</span>
+                  <span className="hidden xs:inline">ចូលចិត្ត</span>
                   {favorites.length > 0 && (
-                    <span className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold min-w-[20px] text-center shadow-xs">
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold min-w-[18px] text-center shadow-xs">
                       {favorites.length}
                     </span>
                   )}
@@ -308,11 +308,11 @@ export default function Home() {
                 {/* Main Tabs (only if logged in) */}
                 {user && (
                   <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto mt-1 md:mt-0">
-                    <div className="flex gap-1 w-full md:w-[320px]">
+                    <div className="flex gap-1 w-full max-w-full md:w-[320px]">
                       <button
                         type="button"
                         onClick={() => setMainTab('INSTITUTION')}
-                        className={`flex-1 px-2.5 sm:px-4 py-2 sm:py-2.5 text-center rounded-xl text-xs sm:text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
+                        className={`flex-1 px-2 min-[380px]:px-3 sm:px-4 py-2 sm:py-2.5 text-center rounded-xl text-[11px] min-[360px]:text-xs sm:text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
                           mainTab === 'INSTITUTION'
                             ? 'bg-[#E2BD55] text-[#094C72] shadow-md'
                             : 'text-white hover:text-[#E2BD55] hover:bg-white/10'
@@ -323,7 +323,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setMainTab('SUBJECT')}
-                        className={`flex-1 px-2.5 sm:px-4 py-2 sm:py-2.5 text-center rounded-xl text-xs sm:text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
+                        className={`flex-1 px-2 min-[380px]:px-3 sm:px-4 py-2 sm:py-2.5 text-center rounded-xl text-[11px] min-[360px]:text-xs sm:text-sm font-black transition-all font-khmer cursor-pointer whitespace-nowrap ${
                           mainTab === 'SUBJECT'
                             ? 'bg-[#E2BD55] text-[#094C72] shadow-md'
                             : 'text-white hover:text-[#E2BD55] hover:bg-white/10'

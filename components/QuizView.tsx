@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart, Play, PlayCircle, RotateCcw, Pause, BookmarkCheck, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Award, HelpCircle, CheckCircle2, XCircle, Sparkles, Heart, Play, PlayCircle, RotateCcw, Pause, BookmarkCheck, BookOpen, Lock, Crown, Send, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import SafeImage from '@/components/SafeImage';
@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { CategorySection } from '@/components/WebDocumentView';
 import { useFirebase } from '@/lib/FirebaseProvider';
+import { DAILY_FREE_QUESTIONS_LIMIT, TELEGRAM_HANDLE, TELEGRAM_UNLOCK_URL } from '@/lib/daily-usage';
+import { AnswerReviewList, AnswerReviewItem } from '@/components/AnswerReviewList';
 
 interface QuizViewProps {
   ministry: Ministry;
@@ -22,7 +24,18 @@ interface QuizViewProps {
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType, onBack, onComplete, initialResume = false }) => {
-  const { toggleFavorite, favorites } = useFirebase();
+  const { 
+    toggleFavorite, 
+    favorites, 
+    isPremium, 
+    userRole, 
+    dailyQuestionsRemaining, 
+    hasReachedDailyLimit, 
+    recordDailyQuestion 
+  } = useFirebase();
+
+  const isStandardAccount = !isPremium && userRole !== 'ADMIN';
+
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -43,10 +56,11 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
 
     // If there is an unfinished saved session
     if (saved && !saved.isFinished && (saved.currentIdx > 0 || Object.keys(saved.answers || {}).length > 0) && Array.isArray(saved.quizzes) && saved.quizzes.length > 0) {
+      const activeQuizzes = isStandardAccount ? saved.quizzes.slice(0, DAILY_FREE_QUESTIONS_LIMIT) : saved.quizzes;
       if (initialResume) {
         // Automatically resume without prompt
-        setQuizzes(saved.quizzes);
-        setCurrentIdx(Math.min(saved.currentIdx || 0, saved.quizzes.length - 1));
+        setQuizzes(activeQuizzes);
+        setCurrentIdx(Math.min(saved.currentIdx || 0, activeQuizzes.length - 1));
         setSelectedOption(saved.selectedOption || null);
         setShowExplanation(saved.showExplanation || false);
         setRevealed(saved.revealed || false);
@@ -60,15 +74,19 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
         // Show prompt asking to resume or restart
         setSavedSessionPrompt(saved);
         const shuffled = [...filtered].sort(() => Math.random() - 0.5);
-        setQuizzes(shuffled);
+        const sessionSet = isStandardAccount ? shuffled.slice(0, DAILY_FREE_QUESTIONS_LIMIT) : shuffled;
+        setQuizzes(sessionSet);
         setIsLoading(false);
         return;
       }
     }
 
     const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+    // Standard accounts take a test consisting of 10 questions per day
+    const sessionSet = isStandardAccount ? shuffled.slice(0, DAILY_FREE_QUESTIONS_LIMIT) : shuffled;
+
     const timer = setTimeout(() => {
-      setQuizzes(shuffled);
+      setQuizzes(sessionSet);
       setCurrentIdx(0);
       setSelectedOption(null);
       setShowExplanation(false);
@@ -81,7 +99,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
     }, 0);
     
     return () => clearTimeout(timer);
-  }, [category, quizType, ministry, initialResume]);
+  }, [category, quizType, ministry, initialResume, isStandardAccount]);
 
   const resumeTest = () => {
     if (!savedSessionPrompt) return;
@@ -185,6 +203,70 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
     );
   }
 
+  // Daily quota limit reached screen for standard accounts
+  if (isStandardAccount && hasReachedDailyLimit && Object.keys(answers).length === 0) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-xl mx-auto py-8 md:py-12 px-4"
+      >
+        <Card className="text-center rounded-[2rem] md:rounded-[2.5rem] border-2 border-amber-400/40 shadow-2xl bg-white p-6 sm:p-10 overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-full h-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
+          <CardHeader className="pt-4 sm:pt-6">
+            <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-amber-50 to-amber-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner border border-amber-200">
+              <Lock className="w-10 h-10 text-amber-600" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold font-khmer mx-auto mb-2 border border-amber-200">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>កូតាឥតគិតថ្លៃ ១០ សំណួរ/ថ្ងៃ បានពេញហើយ</span>
+            </div>
+            <CardTitle className="text-2xl sm:text-3xl font-black text-slate-900 font-khmer">
+              អ្នកបានបញ្ចប់កូតាធ្វើតេស្តប្រចាំថ្ងៃ!
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-sm md:text-base text-slate-600 font-khmer leading-relaxed">
+              គណនីធម្មតាអាចធ្វើតេស្តចំនួន <span className="font-bold text-[#094C72]">១០ សំណួរក្នុងមួយថ្ងៃ</span>។ អ្នកបានឆ្លើយគ្រប់ចំនួន <span className="font-bold text-amber-600">{DAILY_FREE_QUESTIONS_LIMIT} សំណួរ</span> សម្រាប់ថ្ងៃនេះរួចរាល់ហើយ។
+            </p>
+            
+            {/* Telegram Unlock Box */}
+            <div className="p-5 sm:p-6 bg-gradient-to-br from-[#0088cc]/10 via-blue-50/80 to-indigo-50/60 rounded-3xl border-2 border-[#0088cc]/30 text-left space-y-3.5 shadow-sm">
+              <div className="flex items-center gap-2.5 text-[#0088cc] font-black text-base font-khmer">
+                <div className="w-8 h-8 rounded-full bg-[#0088cc] text-white flex items-center justify-center shadow-md shrink-0">
+                  <Send className="w-4 h-4 -rotate-12 translate-x-0.5" />
+                </div>
+                <span>ដោះសោការធ្វើតេស្តពេញលេញ (Full Access)</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 font-khmer leading-relaxed">
+                ដើម្បីដោះសោការធ្វើតេស្តគ្រប់វិញ្ញាសាដោយគ្មានដែនកំណត់សំណួរ និងចូលរៀនមេរៀនទាំងអស់ សូមទំនាក់ទំនងមកកាន់ Telegram៖
+              </p>
+              <a
+                href={TELEGRAM_UNLOCK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2.5 w-full py-4 px-6 bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#00669c] text-white font-black rounded-2xl shadow-lg shadow-[#0088cc]/25 transition-all text-sm font-khmer group cursor-pointer"
+              >
+                <Send className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <span>ទាក់ទង Telegram {TELEGRAM_HANDLE} ដើម្បីដោះសោ</span>
+                <ExternalLink className="w-4 h-4 opacity-75" />
+              </a>
+            </div>
+          </CardContent>
+          <CardFooter className="pt-2">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              className="w-full h-12 rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50 font-khmer font-bold text-xs"
+            >
+              ត្រឡប់ក្រោយ (ត្រឡប់ទៅវិញ្ញាសា)
+            </Button>
+          </CardFooter>
+        </Card>
+      </motion.div>
+    );
+  }
+
   if (quizType === 'Q_AND_A' || quizType === 'VOCABULARY') {
     return (
       <div className="max-w-4xl mx-auto pb-24 space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -210,6 +292,9 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
 
   const handleSelect = (option: string) => {
     if (showExplanation) return;
+    if (isStandardAccount && currentQuiz && !answers[currentQuiz.id]) {
+      recordDailyQuestion();
+    }
     const newAnswers = { ...answers, [currentQuiz.id]: option };
     setSelectedOption(option);
     setAnswers(newAnswers);
@@ -218,6 +303,9 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
   };
 
   const handleReveal = () => {
+    if (isStandardAccount && currentQuiz && !answers[currentQuiz.id]) {
+      recordDailyQuestion();
+    }
     setRevealed(true);
     setShowExplanation(true);
     persistProgress(quizzes, currentIdx, answers, selectedOption, true, true, false);
@@ -298,27 +386,40 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
       return acc + (answers[q.id] === q.correctAnswer ? 1 : 0);
     }, 0);
 
+    const questionsToReview = isIntermediate ? chunkQuizzes : quizzes.slice(0, currentIdx + 1);
+    const reviewItems: AnswerReviewItem[] = questionsToReview.map((q, i) => {
+      const qNum = isIntermediate ? (currentChunkStartIndex + i + 1) : (i + 1);
+      const uAns = answers[q.id];
+      const isCorrect = quizType === 'MULTIPLE_CHOICE' ? uAns === q.correctAnswer : true;
+      return {
+        questionNumber: qNum,
+        quiz: q,
+        userAnswer: uAns,
+        isCorrect
+      };
+    });
+
     return (
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-xl mx-auto py-8 md:py-12 px-4"
+        className="max-w-2xl mx-auto py-8 md:py-12 px-4"
       >
-        <Card className="text-center rounded-[2rem] md:rounded-[2.5rem] border-none shadow-[0_20px_60px_rgba(27,54,93,0.1)] bg-white p-8 md:p-12 overflow-hidden relative">
+        <Card className="text-center rounded-[2rem] md:rounded-[2.5rem] border-none shadow-[0_20px_60px_rgba(27,54,93,0.1)] bg-white p-6 sm:p-10 md:p-12 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-2 prestige-gradient" />
           <CardHeader>
             <motion.div 
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", damping: 12 }}
-              className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-xl border border-[#1B365D]/5 relative overflow-hidden p-3"
+              className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-xl border border-[#1B365D]/10 relative overflow-hidden p-3"
             >
               {ministry.logo ? (
                 <SafeImage 
                   src={ministry.logo} 
                   alt={ministry.name} 
                   fill
-                  className="object-contain p-3"
+                  className="object-contain p-3 rounded-full"
                 />
               ) : (
                 <Award className="w-10 h-10 md:w-12 md:h-12 text-[#D4AF37]" />
@@ -328,7 +429,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
               {isIntermediate ? 'អបអរសាទរ!' : 'អបអរសាទរ!'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-8 md:space-y-10">
+          <CardContent className="space-y-6 md:space-y-8">
             <div className="space-y-3">
               <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-[#1B365D]/40">
                 {isIntermediate ? 'លទ្ធផល ១០ សំណួរនេះ' : 'លទ្ធផលសរុបរបស់អ្នក'}
@@ -344,6 +445,36 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
                 <>អ្នកបានបញ្ចប់ការរៀនវិញ្ញាសា <span className="text-[#1B365D] font-bold">&quot;{category}&quot;</span> សម្រាប់ {ministry.name} ដោយជោគជ័យ។</>
               )}
             </p>
+
+            {/* Answer & Questions Preview List */}
+            <AnswerReviewList 
+              items={reviewItems} 
+              quizType={quizType}
+              title={isIntermediate ? `ផ្ទៀងផ្ទាត់ ១០ សំណួរនេះ (សំណួរទី ${currentChunkStartIndex + 1} - ${currentChunkEndIndex + 1})` : "ផ្ទៀងផ្ទាត់សំណួរ និងចម្លើយដែលបានឆ្លើយរួច"}
+              subtitle={isIntermediate ? "ពិនិត្យមើលសំណួរ ចម្លើយដែលអ្នកបានជ្រើសរើស និងចម្លើយត្រឹមត្រូវ" : "ពិនិត្យមើលគ្រប់សំណួរ និងចម្លើយដែលអ្នកបានឆ្លើយទាំងអស់"}
+            />
+
+            {isStandardAccount && (
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-blue-50 to-indigo-50/70 rounded-2xl border border-blue-200 text-left space-y-2.5">
+                <div className="flex items-center gap-2 text-blue-900 font-bold text-xs sm:text-sm font-khmer">
+                  <Send className="w-4 h-4 text-[#0088cc] shrink-0" />
+                  <span>ដោះសោការធ្វើតេស្តពេញលេញគ្មានដែនកំណត់ (Unlock Full Access)</span>
+                </div>
+                <p className="text-xs text-slate-600 font-khmer leading-relaxed">
+                  គណនីធម្មតាទទួលបានការធ្វើតេស្ត ១០ សំណួរក្នុងមួយថ្ងៃ។ ដើម្បីដោះសោការធ្វើតេស្តពេញលេញគ្រប់វិញ្ញាសាដោយគ្មានដែនកំណត់ សូមទាក់ទងតាមរយៈ Telegram៖
+                </p>
+                <a
+                  href={TELEGRAM_UNLOCK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold rounded-xl shadow-md transition-all text-xs sm:text-sm font-khmer group cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                  <span>ទាក់ទង Telegram {TELEGRAM_HANDLE} ដើម្បីដោះសោ</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="pt-6 md:pt-8">
             {isIntermediate ? (
@@ -464,6 +595,28 @@ export const QuizView: React.FC<QuizViewProps> = ({ ministry, category, quizType
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end min-w-0">
+          {/* Daily Quota Badge */}
+          {isStandardAccount ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-khmer shadow-2xs">
+              <span className="font-bold">កូតាថ្ងៃនេះ៖</span>
+              <span>{Math.max(0, dailyQuestionsRemaining)}/{DAILY_FREE_QUESTIONS_LIMIT}</span>
+              <a
+                href={TELEGRAM_UNLOCK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0088cc] hover:text-[#006699] font-black underline ml-1 flex items-center gap-0.5"
+                title="ដោះសោពេញលេញតាម Telegram"
+              >
+                <span>ដោះសោ</span>
+              </a>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-khmer shadow-2xs">
+              <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span className="font-bold">Premium</span>
+            </div>
+          )}
+
           {/* Favorite Lesson Button */}
           <button
             type="button"

@@ -349,9 +349,17 @@ export function UserNav() {
               <div className="p-4 border-b border-slate-50">
                 <p className="text-sm font-bold text-slate-900">{user.displayName}</p>
                 <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                {userRole === 'ADMIN' && (
+                {userRole === 'ADMIN' ? (
                   <div className="mt-2 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
                     (Admin)
+                  </div>
+                ) : isPremium ? (
+                  <div className="mt-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
+                    👑 Premium
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full inline-block font-khmer">
+                    គណនីធម្មតា (Standard)
                   </div>
                 )}
               </div>

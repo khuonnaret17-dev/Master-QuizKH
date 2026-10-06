@@ -213,7 +213,7 @@ export default function FavoritesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 pt-10 sm:pt-14 md:pt-18 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 overflow-x-hidden">
+    <main className="min-h-screen bg-slate-50 tma-top-spacing pt-20 sm:pt-24 md:pt-28 pb-16 sm:pb-24 px-4 sm:px-8 md:px-12 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Top Header */}
@@ -396,8 +396,8 @@ export default function FavoritesPage() {
                         {/* Card Top: Ministry info & Type Badge */}
                         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 relative rounded-lg overflow-hidden shrink-0 bg-slate-50 p-1 border border-slate-100">
-                              <SafeImage src={q.ministryLogo} alt={q.ministryName} fill className="object-contain" />
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 relative rounded-full overflow-hidden shrink-0 bg-slate-50 p-1 border border-slate-100">
+                              <SafeImage src={q.ministryLogo} alt={q.ministryName} fill className="object-contain rounded-full" />
                             </div>
                             <div className="min-w-0">
                               <span className="text-xs font-bold text-slate-800 font-khmer truncate block">

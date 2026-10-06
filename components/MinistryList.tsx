@@ -37,20 +37,13 @@ const MinistryCard = React.memo(function MinistryCard({ ministry, idx, onSelect,
         {/* Top Info on mobile: Logo + Title */}
         <div className="flex items-center sm:items-start gap-3.5 sm:gap-6 flex-1 min-w-0">
           {/* Logo Section */}
-          <div className="relative w-16 h-16 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-slate-50 rounded-2xl flex items-center justify-center p-1.5 sm:p-3 border border-slate-100 group-hover:bg-white transition-colors duration-300 flex-shrink-0">
+          <div className="relative w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-white rounded-full flex items-center justify-center p-1.5 sm:p-2.5 border border-slate-200/80 shadow-xs group-hover:shadow-md transition-all duration-300 flex-shrink-0 overflow-hidden">
             {ministry.logo ? (
               <SafeImage 
                 src={ministry.logo} 
                 alt={ministry.name} 
                 fill
-                className="object-contain p-1 sm:p-2 group-hover:scale-105 transition-transform duration-500"
-                style={{
-                  backgroundColor: '#ffffff',
-                  borderStyle: 'solid',
-                  borderWidth: '3px',
-                  borderColor: '#0f0fef',
-                  borderRadius: '20px'
-                }}
+                className="object-contain p-1 sm:p-2 group-hover:scale-105 transition-transform duration-500 rounded-full"
               />
             ) : (
               <GraduationCap className="w-8 h-8 sm:w-12 sm:h-12 text-slate-200" />
