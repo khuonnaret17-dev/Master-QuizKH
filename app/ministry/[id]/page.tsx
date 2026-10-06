@@ -470,14 +470,25 @@ function MinistryDetailContent() {
   return (
     <div className="min-h-screen bg-transparent">
       {/* Hero Header */}
-      <div className="relative min-h-[18rem] md:min-h-[22rem] h-auto bg-slate-900 overflow-hidden pt-10 sm:pt-14 md:pt-18 pb-10 sm:pb-12 md:pb-16">
+      <div 
+        className="relative min-h-[18rem] md:min-h-[22rem] h-auto bg-slate-900 overflow-hidden pt-10 sm:pt-14 md:pt-18 pb-10 sm:pb-12 md:pb-16"
+        style={{
+          width: '360px',
+          height: '349.99px'
+        }}
+      >
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <SafeImage src={ministry.logo} alt="" fill className="object-cover blur-xl" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent pointer-events-none" />
         
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 flex flex-col justify-between h-full">
-          <div className="flex items-center justify-between gap-4 mb-8 sm:mb-12">
+          <div 
+            className="flex items-center justify-between gap-4 mb-8 sm:mb-12"
+            style={{
+              height: '78.6562px'
+            }}
+          >
             <Link 
               href="/" 
               className="inline-flex items-center text-white/90 hover:text-white transition-all text-xs sm:text-sm font-bold bg-white/10 hover:bg-white/20 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl border border-white/15 backdrop-blur-md shadow-md cursor-pointer font-khmer"
